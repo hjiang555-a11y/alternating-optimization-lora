@@ -92,14 +92,16 @@ class TrainerState:
 
     # Logs
     loss_history: list[float] = field(default_factory=list)
+    loss_types: list[str] = field(default_factory=list)  # 'loss' or 'noise_energy'
     eval_history: list[dict] = field(default_factory=list)
     flops_history: list[float] = field(default_factory=list)
     memory_history: list[float] = field(default_factory=list)
 
     _start_time: float = field(default_factory=time.time)
 
-    def record_loss(self, loss: float):
+    def record_loss(self, loss: float, loss_type: str = "loss"):
         self.loss_history.append(loss)
+        self.loss_types.append(loss_type)
 
     def record_eval(self, step: int, results: dict):
         self.eval_history.append({"step": step, **results})
@@ -122,6 +124,7 @@ class TrainerState:
             "peak_memory_mb": self.peak_memory_mb,
             "elapsed_seconds": time.time() - self._start_time,
             "loss_history": self.loss_history,
+            "loss_types": self.loss_types,
             "eval_history": self.eval_history,
         }
 
@@ -345,8 +348,9 @@ class AltOptTrainer:
         self.memory_tracker.reset_peak()
 
     def _on_step_end(self, loss: float):
-        self.state.record_loss(loss)
         phase = self._current_phase_name()
+        loss_type = "noise_energy" if phase == "PERTURB" else "loss"
+        self.state.record_loss(loss, loss_type)
         flops = self.flops_profiler.record_step(phase)
         self.state.record_flops(flops)
         mem = self.memory_tracker.snapshot()
