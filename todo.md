@@ -1,70 +1,82 @@
 # alternating-optimization-lora 项目推进路线
 
-## 当前基线 (Round 2 完成)
-- 34 files, 3675 LOC, 67 tests all passing
+## 当前基线 (Phase 2+3+4 完成)
 - 核心框架: AltOptFramework, LoRABaseline ✅
 - 基础设施: Trainer, Profiling, PEFT, Checkpoint, Evaluator ✅
-- 尚未在真实模型上端到端运行 ❌
+- 规模化: ModelLoader (7B+), DeepSpeed ZeRO-1/2/3 ✅
+- 消融: RQ1-RQ6 系统性消融实验框架 ✅
+- 可视化: 6 种图表类型, 一键生成 ✅
+- 文档: 3 份实验报告 + 数学框架文档 ✅
+- 测试: 67 tests passing ✅
 
 ---
 
 ## 计划执行清单
 
 ### Step 1: 端到端集成验证 (GPT-2 最小可行)
-**目标**: 在 GPT-2 + WikiText-2 上跑通 Protocol A (AltOpt full-rank) 单步
-**验收标准**: 加载 GPT-2 → 构建 Trainer → 跑 3 步不报错 → loss 正常下降
-**评估**: ✅ PASS — GPT-2 (124M) 加载成功，3步训练完成。loss: 827k→8.0→9.4 (第一步 ALS 全量前传 loss sum，后续 SGD 步正常)。FLOPs 估算: 2.24e9。发现数据集名称需修复 (wikitext-2-raw-v1 → wikitext, wikitext-2-raw-v1)
-**状态**: ✅
+**状态**: ✅ — 报告 #001
 
 ### Step 2: 修复 Protocol B/C/D 集成路径
-**目标**: 确保四种 Protocol 都能跑通
-**验收标准**: Python 脚本跑 A→B→C→D 各 5 步，无异常退出
-**评估**: ✅ PASS — 全部通过。发现两个问题并修复：(1) Protocol C 原本错误地使用 AdamW 而非 AltOpt，已修复为 SGD+perturb alternation on LoRA params；(2) Protocol D 因 GPT-2 用 Conv1D 而非 nn.Linear，LoRA 注入失败，已添加降级逻辑 fallback 到 full-rank AdamW。67 单元测试无回归。
-**状态**: ✅
+**状态**: ✅ — 报告 #001
 
 ### Step 3: 统一评分协议实战验证
-**目标**: 确保四种 Protocol 用完全相同的 eval data/batch/metric 进行评估
-**验收标准**: 四协议在同一 eval set 上产出可比较的 perplexity/loss
-**评估**: ✅ PASS — 全部通过。(1) 四协议 eval keys 完全一致 (perplexity, loss, n_tokens)；(2) 四协议在同一 1024 token eval set 上评估；(3) 输出格式可直接比较。A: ppl=40612 (5步太少, ALS 未收敛), B: ppl=12.70, C: ppl=2141, D: ppl=12.70
-**状态**: ✅
+**状态**: ✅ — 报告 #001
 
 ### Step 4: FLOPs 精确计数接入 (fvcore)
-**目标**: 用 fvcore 替换启发式估算，实际测量 ALS vs SGD vs AdamW 的单步 FLOPs
-**验收标准**: 输出 per-phase FLOPs breakdown (ALS/SGD/Perturb/AdamW 各自多少 FLOPs)
-**评估**: ✅ PASS — FlopsProfiler.record_step() 按 phase 分计。Protocol A (6步): ALS=4.98e8 (11.8%), SGD=3.73e9 (88.2%)。Protocol B (5步): AdamW=6.22e9 (100%)。ALS 单步成本最低 (4× params, forward only)，SGD 居中 (6× params)，AdamW 最贵 (10× params)。fvcore 未安装时使用 param-based 启发式估算，安装后自动切到 op-level 计数。67 测试无回归。
-**状态**: ✅
+**状态**: ✅ — 报告 #001
 
 ### Step 5: 小规模对比实验 (GPT-2, 50 steps)
-**目标**: 运行完整的 2×2 对比，产出第一组可比较数据
-**验收标准**: 四组 loss 曲线 + perplexity table + FLOPs/memory 报告
-**评估**: ✅ PASS — 40步/协议，产出可比较结果：
-  - A (AltOpt+Full): loss=6.30, ppl=185.30, FLOPs=2.79e10 (ALS 5.4%, SGD 93.7%, Perturb 0.9%)
-  - B (AdamW+Full): loss=2.03, ppl=8.31, FLOPs=4.98e10
-  - C (AltOpt+LoRA): loss=2.13, ppl=9.98, FLOPs=2.99e10 (60% of B's FLOPs!)
-  - D (AdamW+LoRA): same as B (GPT-2 Conv1D fallback)
-  
-  关键发现: (1) AltOpt 全秩收敛慢于 AdamW (40步太少，ALS 需更多 SGD 精化); (2) AltOpt+LoRA 以 60% FLOPs 达到相近 PPL; (3) 框架成功实现了统一评分和资源归一化比较。
-  结果保存至 runs/exp_001_gpt2_50steps/results.json
+**状态**: ✅ — 报告 #001
+
+### Step 6: 实验报告撰写 (报告 #001)
 **状态**: ✅
 
-### Step 6: 实验报告撰写
-**目标**: 基于 Step 5 的结果写实验报告
-**验收标准**: markdown 报告含: 实验设置、结果表格、分析、结论
-**评估**: ✅ PASS — 报告写入 docs/experiment-report-001.md。包含: (1) 实验设计 2×2 矩阵；(2) 汇总表 + FLOPs breakdown；(3) 四项分析 (全秩 AltOpt vs AdamW, 低秩 AltOpt vs AdamW, 参数形态效应, 交互效应)；(4) 框架验证结果 (统一评分/资源归一化/基础设施)；(5) 局限性及下一步计划；(6) 结论
+### Step 7: Round 2 基础设施完善
+**状态**: ✅
+
+### Step 8: Round 3 GPT-2 Conv1D + 复现性
+**状态**: ✅ — 报告 #002
+
+### Step 9: Round 4 OPT-125m 干净 2×2 + ALS:SGD 消融
+**状态**: ✅ — 报告 #002
+
+### Step 10: Phase 2 — 规模化基础设施
+**状态**: ✅
+- model_utils.py: 7B+ 模型加载 (bf16/int4/gradient checkpointing)
+- deepspeed_engine.py: ZeRO-1/2/3 集成, 显存分析
+- llama2_7b.yaml: 7B 实验配置
+- trainer.py: DeepSpeed 训练循环
+
+### Step 11: Phase 3 — 消融实验框架
+**状态**: ✅
+- ablation.py: RQ2-RQ6 独立消融 + run_all_ablation()
+- analysis.py: RQ1 2×2 析因分析
+
+### Step 12: Phase 4 — 可视化工具包
+**状态**: ✅
+- visualization.py: 6 种图表 + generate_all_plots()
+
+### Step 13: 实验报告 #003
 **状态**: ✅
 
 ---
 
-## 后续规划 (本轮后)
+## 后续规划
 
-### Phase 2: 规模化
-- 7B 模型 (Llama-2-7B) 验证
-- 多 GPU / DeepSpeed 支持
+### Phase 5: 数据产出
+- [ ] 运行 ablation.py 产生消融数据 (`python experiments/ablation.py gpt2`)
+- [ ] 基于消融结果生成可视化图表
+- [ ] 下载 Llama-2-7B 模型
 
-### Phase 3: 消融实验
-- RQ1-RQ6 系统性研究
-- ALS:SGD 比例扫描
-- 扰动强度消融
+### Phase 6: 7B 规模化实验
+- [ ] Llama-2-7B 2×2 析因 (DeepSpeed ZeRO-2)
+- [ ] 7B 规模 ALS:SGD 最优比验证
+- [ ] 与 GPT-2/OPT 结果的一致性分析
+
+### Phase 7: 扩展到更大规模
+- [ ] 13B/70B 模型支持 (ZeRO-3)
+- [ ] 多节点 / DeepSpeed 优化
+- [ ] 多数据集验证
 
 ---
 

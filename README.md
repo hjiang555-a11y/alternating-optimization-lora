@@ -179,22 +179,42 @@ alternating-optimization-lora/
 ├── docs/
 │   ├── framework.md              # AltOpt 形式化定义（含数学推导）
 │   ├── comparison-challenges.md  # 比较难题的详细分析
-│   └── literature.md             # 相关工作综述
+│   ├── literature.md             # 相关工作综述
+│   ├── experiment-report-001.md  # 实验报告 #001: GPT-2 2×2
+│   ├── experiment-report-002.md  # 实验报告 #002: OPT-125m 消融
+│   ├── experiment-report-003.md  # 实验报告 #003: 规模化+消融框架
+│   └── flaw-analysis-001.md      # GPT-2 Conv1D 缺陷分析
 ├── altopt/
 │   ├── __init__.py
 │   ├── framework.py              # 核心 AltOpt 协调器
 │   ├── als.py                    # ALS 块求解器
 │   ├── sgd.py                    # SGD 优化器
 │   ├── perturbation.py           # 随机扰动调度器
-│   └── lora.py                   # LoRA 基线实现
+│   ├── lora.py                   # LoRA 基线实现
+│   ├── model_utils.py            # 7B+ 模型加载工具
+│   ├── deepspeed_engine.py       # DeepSpeed ZeRO 集成
+│   ├── peft_bridge.py            # HuggingFace PEFT 桥接
+│   ├── trainer.py                # 统一训练器 (含 DeepSpeed)
+│   ├── checkpoint.py             # 检查点管理
+│   ├── evaluation.py             # 统一评分协议
+│   └── profiling/
+│       ├── flops.py              # FLOPs 精确计数
+│       └── memory.py             # 显存追踪
 ├── experiments/
-│   ├── configs/base.yaml         # 实验配置
 │   ├── runner.py                 # 实验执行器
 │   ├── metrics.py                # 资源感知指标
-│   └── analysis.py               # 结果分析与可视化
+│   ├── analysis.py               # 2×2 析因分析
+│   ├── ablation.py               # RQ1-RQ6 消融实验
+│   ├── visualization.py          # 可视化工具包
+│   └── configs/
+│       ├── base.yaml             # GPT-2/OPT 配置
+│       └── llama2_7b.yaml        # Llama-2-7B + DeepSpeed
 ├── tests/
 │   ├── test_framework.py         # AltOpt 单元测试
-│   └── test_lora.py              # LoRA 单元测试
+│   ├── test_lora.py              # LoRA 单元测试
+│   ├── test_trainer.py           # Trainer 集成测试
+│   ├── test_profiling.py         # FLOPs/Memory 测试
+│   └── test_checkpoint.py        # Checkpoint 测试
 ├── requirements.txt
 ├── pyproject.toml
 └── .gitignore
@@ -225,11 +245,16 @@ python experiments/analysis.py logs/
 - [x] 2×2 析因实验框架
 - [x] 统一评分与资源核算体系
 - [x] 形式化数学文档
-- [x] 29 个单元测试全部通过
-- [ ] GPT-2 规模验证实验
-- [ ] 7B+ 模型规模化实验
-- [ ] RQ1-RQ6 系统性消融实验
-- [ ] 实验报告撰写
+- [x] 67 个单元测试全部通过
+- [x] GPT-2 规模验证实验 (报告 #001)
+- [x] OPT-125m 2×2 + 消融 (报告 #002)
+- [x] 7B 模型加载 + DeepSpeed ZeRO 集成 (Phase 2)
+- [x] RQ1-RQ6 系统性消融实验框架 (Phase 3)
+- [x] 可视化工具包 (Phase 4)
+- [x] 实验报告 #003 (规模化+消融框架)
+- [ ] 消融实验数据产出 (运行 ablation.py)
+- [ ] Llama-2-7B 规模化实验
+- [ ] 13B/70B 模型扩展验证
 
 ---
 

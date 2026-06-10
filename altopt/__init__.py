@@ -36,6 +36,28 @@ except ImportError:
     PeftBridge = None  # type: ignore
     AdapterInfo = None  # type: ignore
 
+try:
+    from .model_utils import (
+        ModelLoadConfig, load_model_and_tokenizer,
+        enable_gradient_checkpointing, get_model_size_gb,
+        estimate_training_memory_gb,
+    )
+    _has_model_utils = True
+except ImportError:
+    _has_model_utils = False
+    ModelLoadConfig = None  # type: ignore
+    load_model_and_tokenizer = None  # type: ignore
+
+try:
+    from .deepspeed_engine import (
+        DeepSpeedConfig, DeepSpeedEngine, estimate_zero_memory,
+    )
+    _has_deepspeed = True
+except ImportError:
+    _has_deepspeed = False
+    DeepSpeedConfig = None  # type: ignore
+    DeepSpeedEngine = None  # type: ignore
+
 __all__ = [
     # Core framework
     "AltOptFramework", "Phase", "PhaseConfig", "PhaseSchedule", "AltOptState",
@@ -50,4 +72,8 @@ __all__ = [
     "CheckpointManager", "Evaluator",
     # PEFT bridge (optional)
     "PeftBridge", "AdapterInfo",
+    # Model utilities (optional)
+    "ModelLoadConfig", "load_model_and_tokenizer",
+    # DeepSpeed engine (optional)
+    "DeepSpeedConfig", "DeepSpeedEngine", "estimate_zero_memory",
 ]

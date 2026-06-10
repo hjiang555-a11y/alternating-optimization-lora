@@ -36,44 +36,42 @@ logger = logging.getLogger(__name__)
 class TrainerConfig:
     """Configuration for AltOptTrainer."""
 
-    protocol: str = "A"                   # A, B, C, D
+    protocol: str = "A"
     optimizer_type: str = "altopt"
     parameter_form: str = "full_rank"
 
-    # Budget
     total_budget_flops: float = float("inf")
     max_steps: Optional[int] = None
     max_epochs: Optional[int] = None
 
-    # Evaluation
     eval_every: int = 100
 
-    # Checkpoint
     run_dir: str = "runs/default"
     save_every: int = 500
     keep_last_ckpt: int = 3
     resume_from: Optional[str] = None
 
-    # Profiling
     profile_memory: bool = False
 
-    # Phase schedule (for AltOpt)
     phase_schedule: Optional[PhaseSchedule] = None
 
-    # LoRA (for protocols C, D)
     lora_r: int = 8
     lora_alpha: float = 16.0
     lora_dropout: float = 0.0
     lora_target_modules: Optional[list[str]] = None
 
-    # Optimizer hyperparams
     lr: float = 1e-4
     momentum: float = 0.9
     weight_decay: float = 0.01
     adamw_betas: tuple[float, float] = (0.9, 0.999)
 
-    # Seed
     seed: int = 42
+
+    use_deepspeed: bool = False
+    deepspeed_zero_stage: int = 2
+    deepspeed_bf16: bool = True
+    deepspeed_fp16: bool = False
+    gradient_accumulation_steps: int = 1
 
 
 @dataclass
@@ -192,6 +190,10 @@ class AltOptTrainer:
         cfg = self.config
         torch.manual_seed(cfg.seed)
 
+        if cfg.use_deepspeed:
+            self._setup_deepspeed()
+            return
+
         if cfg.parameter_form == "lora":
             if cfg.optimizer_type == "altopt":
                 # Protocol C: LoRA + AltOpt — try PEFT bridge first, fall back to built-in
@@ -266,9 +268,40 @@ class AltOptTrainer:
                 lr=cfg.lr, betas=cfg.adamw_betas, weight_decay=cfg.weight_decay,
             )
 
+    def _setup_deepspeed(self):
+        from .deepspeed_engine import DeepSpeedConfig, DeepSpeedEngine
+
+        ds_cfg = DeepSpeedConfig(
+            zero_stage=self.config.deepspeed_zero_stage,
+            bf16_enabled=self.config.deepspeed_bf16,
+            fp16_enabled=self.config.deepspeed_fp16,
+            gradient_accumulation_steps=self.config.gradient_accumulation_steps,
+        )
+        self._deepspeed_engine = DeepSpeedEngine(
+            self.model, ds_cfg, optimizer=self.optimizer
+        )
+        self._deepspeed_initialized = False
+
+        self._has_altopt = self.config.optimizer_type == "altopt"
+        if self._has_altopt:
+            schedule = self.config.phase_schedule or PhaseSchedule(
+                phases=[
+                    PhaseConfig(phase=Phase.ALS, steps=1, block_size=1024),
+                    PhaseConfig(phase=Phase.SGD, steps=100, lr=self.config.lr),
+                    PhaseConfig(phase=Phase.PERTURB, steps=1, noise_scale=1e-3),
+                ],
+                cycles=3,
+            )
+            self.altopt = AltOptFramework(self.model, schedule)
+
     # ── Main Training Loop ─────────────────────────────────────────
 
     def train(self, dataloader) -> TrainerState:
+        if self.config.use_deepspeed:
+            return self._train_deepspeed(dataloader)
+        return self._train_standard(dataloader)
+
+    def _train_standard(self, dataloader) -> TrainerState:
         self.model.train()
         cfg = self.config
 
@@ -396,6 +429,51 @@ class AltOptTrainer:
         if self.state.cumulative_flops >= cfg.total_budget_flops:
             return True
         return False
+
+    def _train_deepspeed(self, dataloader) -> TrainerState:
+        if not self._deepspeed_initialized:
+            self._deepspeed_engine.initialize(dataloader)
+            self._deepspeed_initialized = True
+
+        engine = self._deepspeed_engine.engine
+        self.model.train()
+        cfg = self.config
+
+        for epoch in range(cfg.max_epochs or 1):
+            self.state.epoch = epoch
+            for batch in dataloader:
+                self._on_step_start(batch)
+
+                device = engine.device
+                batch_gpu = {
+                    k: v.to(device) if isinstance(v, torch.Tensor) else v
+                    for k, v in batch.items()
+                }
+
+                if self._has_altopt and self.altopt is not None:
+                    loss = self.altopt.step(batch_gpu)
+                else:
+                    outputs = engine(**batch_gpu)
+                    raw_loss = outputs.loss if hasattr(outputs, "loss") else outputs[0]
+                    engine.backward(raw_loss)
+                    engine.step()
+                    loss = raw_loss.item() if isinstance(raw_loss, torch.Tensor) else raw_loss
+
+                self._on_step_end(loss)
+                self.state.step += 1
+
+                if self._budget_exceeded():
+                    logger.info("Budget exceeded at step %d", self.state.step)
+                    self._on_epoch_end(epoch)
+                    return self.state
+
+                if cfg.max_steps and self.state.step >= cfg.max_steps:
+                    self._on_epoch_end(epoch)
+                    return self.state
+
+            self._on_epoch_end(epoch)
+
+        return self.state
 
     # ── High-level API ──────────────────────────────────────────────
 

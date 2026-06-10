@@ -66,7 +66,19 @@ def run_single_protocol(
 ) -> TrainerState:
     opt_type, param_form = PROTOCOL_LABELS[label]
 
-    model = AutoModelForCausalLM.from_pretrained(model_name)
+    use_deepspeed = False
+    if model_name.startswith("meta-llama") or "7b" in model_name.lower() or "13b" in model_name.lower():
+        use_deepspeed = True
+        logger.info("Large model detected, enabling DeepSpeed ZeRO-2")
+
+    model = AutoModelForCausalLM.from_pretrained(
+        model_name,
+        torch_dtype=torch.bfloat16,
+        device_map="auto" if not use_deepspeed else None,
+        trust_remote_code=True,
+    )
+    model.gradient_checkpointing_enable()
+
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     tokenizer.pad_token = tokenizer.eos_token
 
@@ -84,6 +96,9 @@ def run_single_protocol(
         max_steps=max_steps,
         run_dir=run_path,
         seed=seed,
+        use_deepspeed=use_deepspeed,
+        deepspeed_zero_stage=2,
+        deepspeed_bf16=True,
     )
 
     trainer = AltOptTrainer(model, config, eval_dataloader=eval_dl, tokenizer=tokenizer)
