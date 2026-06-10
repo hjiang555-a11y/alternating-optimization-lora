@@ -1,0 +1,102 @@
+# Alternating Optimization vs LoRA — Experiment Configurations
+
+# ─── Base Configuration (shared across all protocols) ───
+base:
+  model: "gpt2"                    # Starting point for small-scale experiments
+  dataset: "wikitext-2-raw-v1"     # Standard language modeling benchmark
+  max_seq_length: 512
+  per_device_batch_size: 8
+  gradient_accumulation_steps: 4
+  total_budget:
+    type: "flops"                  # Normalize by FLOPs, not steps
+    value: 1e15                    # 1 PFLOP total budget
+  eval_steps: 100
+  save_steps: 500
+  seed: 42
+
+# ─── Protocol A: Full-Rank AltOpt ───
+protocol_a:
+  optimizer: "altopt"
+  parameter_form: "full_rank"
+  altopt:
+    cycles: 3
+    phases:
+      - type: "als"
+        steps: 1
+        block_size: 1024
+      - type: "sgd"
+        steps: 100
+        lr: 1.0e-4
+      - type: "perturb"
+        steps: 1
+        noise_scale: 1.0e-3
+    als:
+      reg_lambda: 1.0e-4
+    sgd:
+      momentum: 0.9
+      weight_decay: 0.01
+    perturbation:
+      noise_type: "gaussian"
+      decay_schedule: "cosine"
+
+# ─── Protocol B: Full-Rank AdamW ───
+protocol_b:
+  optimizer: "adamw"
+  parameter_form: "full_rank"
+  adamw:
+    lr: 1.0e-4
+    betas: [0.9, 0.999]
+    weight_decay: 0.01
+
+# ─── Protocol C: LoRA-AltOpt ───
+protocol_c:
+  optimizer: "altopt"
+  parameter_form: "lora"
+  lora:
+    r: 8
+    alpha: 16.0
+    dropout: 0.0
+    target_modules: ["q_proj", "v_proj", "k_proj", "o_proj"]
+  altopt:
+    cycles: 3
+    phases:
+      - type: "als"
+        steps: 1
+        block_size: 256
+      - type: "sgd"
+        steps: 100
+        lr: 1.0e-4
+      - type: "perturb"
+        steps: 1
+        noise_scale: 1.0e-3
+
+# ─── Protocol D: LoRA-AdamW ───
+protocol_d:
+  optimizer: "adamw"
+  parameter_form: "lora"
+  lora:
+    r: 8
+    alpha: 16.0
+    dropout: 0.0
+    target_modules: ["q_proj", "v_proj", "k_proj", "o_proj"]
+  adamw:
+    lr: 1.0e-4
+    betas: [0.9, 0.999]
+    weight_decay: 0.01
+
+# ─── Resource Tracking ───
+resource_tracking:
+  track_flops: true
+  track_memory: true
+  track_wall_time: true
+  flops_counter: "fvcore"         # Alternative: "thop", "custom"
+  memory_profiler: "torch.cuda"   # Alternative: "custom_hook"
+
+# ─── Logging ───
+logging:
+  wandb:
+    enabled: false
+    project: "altopt-vs-lora"
+  local:
+    log_dir: "logs/"
+    save_checkpoints: true

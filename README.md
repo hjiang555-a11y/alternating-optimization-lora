@@ -1,0 +1,238 @@
+# Alternating Optimization Framework vs LoRA
+
+> **统一评分体系下的后训练方法对比研究：交替最小二乘（ALS）+ 随机梯度下降（SGD）+ 随机扰动 vs 低秩适配（LoRA）**
+>
+> A unified evaluation framework for comparing post-training strategies on pretrained large language models. Core question: can the ALS-SGD-perturbation alternating protocol be a superior post-training optimizer compared to the dominant LoRA+AdamW paradigm?
+
+---
+
+## 项目目标 (Project Objectives)
+
+### 总体目标
+
+在一个**统一的评分与资源核算体系**下，系统比较两类后训练方法——交替优化框架（ALS + SGD + 随机扰动）与低秩适配（LoRA）——在大语言模型后训练场景中的性能、效率与泛化能力。
+
+### 具体目标
+
+1. **建立公平比较协议**：设计 2×2 析因实验，将「优化器/更新策略」与「参数形态（全秩 vs 低秩）」两类独立变量解耦，使性能差异可归因。
+
+2. **统一评分体系**：在相同 FLOPs 预算、相同显存约束、相同 wall-clock 时间三种尺度下，用统一的 evaluation protocol（perplexity + downstream task accuracy）评估所有方法。
+
+3. **量化 ALS 的计算成本是否值得**：ALS 的矩阵求逆开销（O(b³)）何时被其全局拟合优势所抵消？找出 ALS:SGD 最优调度比。
+
+4. **回答 LoRA 低秩流形是否改变交替优化的逃逸局部最优能力**：LoRA 的低秩投影是否削弱了随机扰动（Phase III）的效果？
+
+5. **探索 ALS-SGD-扰动框架与 LoRA 的协同可能性**：Protocol C（LoRA 参数结构 + AltOpt 优化器）是否能同时获得两者的优势？
+
+---
+
+## 名词解释 (Glossary)
+
+| 术语 | 英文 | 解释 |
+|------|------|------|
+| **后训练** | Post-training | 在预训练完成的大模型基础上，用特定任务数据进一步调整参数的过程。区别于从随机初始化开始的预训练（pre-training）。 |
+| **交替最小二乘** | ALS (Alternating Least Squares) | 将参数矩阵按行分块，每次固定其他块，对当前块做闭式最小二乘求解，需要矩阵求逆。求解方式是精确的（exact），但计算开销大。 |
+| **随机梯度下降** | SGD (Stochastic Gradient Descent) | 每次取一个小批量数据，沿负梯度方向更新参数。细粒度、计算开销适中，但容易陷入局部最优。 |
+| **随机扰动** | Stochastic Perturbation | 在参数空间中注入受控噪声，帮助优化器跳出窄的局部极小值。类似 simulated annealing 的思想，但作用于参数空间。 |
+| **低秩适配** | LoRA (Low-Rank Adaptation) | 将参数更新限制在低秩子空间内：ΔW = (α/r)·BA，其中 B ∈ ℝ^{d×r}，A ∈ ℝ^{r×k}，r ≪ min(d,k)。大幅减少可训练参数数量，默认绑定 AdamW 优化器。 |
+| **交替优化框架** | AltOpt (Alternating Optimization) | 将 ALS、SGD、扰动三种机制按阶段调度，交替执行的参数更新策略。本质上是**优化器创新**（决定参数「怎么更新」），而非参数结构创新。 |
+| **全秩更新** | Full-Rank ΔW | 直接更新完整的权重矩阵 W，不施加低秩约束。AltOpt 的默认工作模式。 |
+| **AdamW** | AdamW | 带权重衰减的 Adam 优化器，LoRA 的默认优化器。属于自适应矩估计（adaptive moment estimation）类方法。 |
+| **FLOPs 预算** | FLOPs Budget | 浮点运算总次数上限。ALS 单步 FLOPs 远高于 SGD 单步，因此不能按「步数」比较，必须按「总计算量」比较。 |
+| **析因实验** | Factorial Experiment | 同时变化两个因子（优化器类型 × 参数形态），形成 2×2=4 种协议，以分离主效应和交互效应。 |
+| **参数形态** | Parameter Form | 指参数更新以何种数学结构存在：全秩矩阵（full-rank）或低秩分解（low-rank BA）。这是独立于优化器选择的另一个维度。 |
+| **评分体系** | Evaluation Protocol | 统一的评估标准：包括训练损失、验证困惑度（perplexity）、下游任务准确率、以及资源消耗（FLOPs、显存、时间）的归一化指标。 |
+
+---
+
+## 问题背景
+
+给定一个预训练好的大语言模型，其参数为 θ₀ ∈ ℝᵈ。后训练的目标是在任务数据集 D = {(xᵢ, yᵢ)} 上找到更新后的参数 θ*，最小化经验风险。
+
+两种主流的后训练思路：
+
+- **思路一（优化器路线）**：保持参数的全秩形态，但在「如何更新参数」上创新——例如交替使用 ALS（块状精确求解）、SGD（细粒度梯度收敛）、随机扰动（跳出局部最优）。
+- **思路二（参数结构路线）**：将参数更新约束为低秩形式 ΔW = BA，然后使用标准优化器（如 AdamW）进行训练。本质是在低维流形上进行优化。
+
+**核心矛盾**：思路一决定的是参数「怎样被更新」（优化策略），思路二决定的是参数「以何种形态存在」（参数结构）。任何直接数值对比都不可避免地将两类独立变量混杂在一起。
+
+---
+
+## 交替优化框架 (AltOpt)
+
+### 三种机制
+
+| 阶段 | 机制 | 粒度 | 计算特征 |
+|------|------|------|----------|
+| **Phase I** | ALS（交替最小二乘） | 块状精确求解 | 矩阵求逆 O(b³) / 块 |
+| **Phase II** | SGD（随机梯度下降） | 逐样本细粒度 | 梯度反传 O(d²) |
+| **Phase III** | 随机扰动 | 全局参数噪声 | 随机注入 O(d) |
+
+### 互补性
+
+- **ALS** → 在当前激活值下给出块状全局最优解，但忽略跨块耦合
+- **SGD** → 通过梯度捕获跨块交互，但容易陷入局部最优
+- **扰动** → 通过参数空间噪声逃离窄局部极小值，帮助探索更优的 loss basin
+
+### 调度策略
+
+默认调度：ALS (1 步) → SGD (100 步) → 扰动 (1 步)，重复 3 个周期。
+
+ALS 计算昂贵但运行稀少（1:100 的步数比），SGD 计算适中但运行频繁。
+
+---
+
+## 低秩适配 (LoRA)
+
+LoRA 将参数更新约束为低秩分解：
+
+$$\Delta W = \frac{\alpha}{r} B A, \quad B \in \mathbb{R}^{d_{\text{out}} \times r}, \; A \in \mathbb{R}^{r \times d_{\text{in}}}$$
+
+其中秩 r ≪ min(d_out, d_in)（典型值 r=8）。
+
+**关键特性**：
+- 可训练参数量从 d_out × d_in 降至 r × (d_out + d_in)，减少 ~100-1000×
+- 默认使用 AdamW 作为优化器
+- 低秩流形可能改变损失地形，平滑或阻碍优化路径
+
+---
+
+## 关键研究问题 (Key Research Questions)
+
+### RQ1: 归因分离 (Disentanglement)
+
+能否设计实验协议，将交替优化机制的效应与低秩参数化的效应**独立分离**？
+
+**方法**：2×2 析因设计（优化器 × 参数形态），通过比较 A vs B（全秩下优化器效应）和 C vs D（低秩下优化器效应）来分离主效应，通过 (A-B)-(C-D) 检验交互效应。
+
+### RQ2: 效率边界 (Efficiency Frontier)
+
+在什么计算/显存预算下，ALS 矩阵求逆的额外开销（O(b³)）值得付出？
+
+**方法**：在多个 FLOPs 预算档次（10¹², 10¹³, 10¹⁴, 10¹⁵）下重复实验，绘制「FLOPs → 最终损失」的 Pareto 曲线。
+
+### RQ3: 损失地形交互 (Loss Landscape Interaction)
+
+LoRA 的低秩流形是否**改变了交替优化宣称的跳出局部最优的能力**？
+
+**假设**：低秩约束减少了参数空间的自由度 → 减少了可逃离方向 → 可能削弱随机扰动的效果。但也可能低秩流形本身已经足够平滑，使扰动不再必要。
+
+**方法**：比较 Protocol A（全秩 AltOpt）和 Protocol C（低秩 AltOpt）中扰动阶段前后的 loss drop 幅度。
+
+### RQ4: 泛化能力 (Generalization)
+
+ALS 全局拟合 + SGD 局部精化 + 扰动探索的组合，是否比纯梯度优化（AdamW）在相同参数形态下具有更好的泛化能力？
+
+**方法**：比较训练损失相同时的验证困惑度和下游任务（如 MMLU, HellaSwag）的表现。
+
+### RQ5: 协同可能 (Synergy)
+
+ALS-SGD-扰动优化器 + LoRA 参数结构（Protocol C）是否能同时获得**低秩的效率**和**交替优化的收敛优势**？
+
+**方法**：Protocol C vs Protocol D（LoRA-AdamW），在相同 FLOPs 预算下比较最终损失和下游任务表现。
+
+### RQ6: ALS:SGD 最优比
+
+如何确定 ALS 步数与 SGD 步数的最优比例？
+
+**方法**：固定总 FLOPs 预算，扫描 ALS:SGD 比例（1:10, 1:50, 1:100, 1:500, 1:1000），找出使最终损失最小的比例。
+
+---
+
+## 公平比较协议 (2×2 Factorial Design)
+
+我们将两类独立变量交叉，形成四种实验条件：
+
+| | **全秩更新 (Full-Rank ΔW)** | **低秩更新 (LoRA ΔW = BA)** |
+|---|---|---|
+| **AltOpt 优化器** | Protocol A | Protocol C |
+| **AdamW 优化器** | Protocol B | Protocol D |
+
+### 各比较的含义
+
+| 比较 | 测试的变量 | 控制的条件 |
+|------|-----------|-----------|
+| A vs B | 优化器效应（全秩条件下） | 参数形态 |
+| C vs D | 优化器效应（低秩条件下） | 参数形态 |
+| A vs C | 参数形态效应（AltOpt 下） | 优化器 |
+| B vs D | 参数形态效应（AdamW 下） | 优化器 |
+| **(A-B)-(C-D)** | 交互效应（优化器效应是否依赖参数形态） | — |
+
+### 资源归一化
+
+由于 ALS 和 SGD 的单步计算开销不同，我们按**等总 FLOPs**（而非等步数）进行比较：
+
+$$\text{Protocol 运行至 } \sum_{t=1}^T \text{FLOPs}_t \geq \text{BUDGET}$$
+
+三种预算维度：
+1. **FLOPs 预算**（主维度）：总浮点运算次数
+2. **显存预算**（次维度）：峰值 GPU 显存占用
+3. **时间预算**（第三维度）：墙面时钟时间
+
+---
+
+## 仓库结构
+
+```
+alternating-optimization-lora/
+├── README.md                     # 本文件
+├── docs/
+│   ├── framework.md              # AltOpt 形式化定义（含数学推导）
+│   ├── comparison-challenges.md  # 比较难题的详细分析
+│   └── literature.md             # 相关工作综述
+├── altopt/
+│   ├── __init__.py
+│   ├── framework.py              # 核心 AltOpt 协调器
+│   ├── als.py                    # ALS 块求解器
+│   ├── sgd.py                    # SGD 优化器
+│   ├── perturbation.py           # 随机扰动调度器
+│   └── lora.py                   # LoRA 基线实现
+├── experiments/
+│   ├── configs/base.yaml         # 实验配置
+│   ├── runner.py                 # 实验执行器
+│   ├── metrics.py                # 资源感知指标
+│   └── analysis.py               # 结果分析与可视化
+├── tests/
+│   ├── test_framework.py         # AltOpt 单元测试
+│   └── test_lora.py              # LoRA 单元测试
+├── requirements.txt
+├── pyproject.toml
+└── .gitignore
+```
+
+---
+
+## 快速开始
+
+```bash
+# 安装
+pip install -e ".[dev]"
+
+# 运行小规模实验（GPT-2 级别）
+python experiments/runner.py experiments/configs/base.yaml
+
+# 分析结果
+python experiments/analysis.py logs/
+```
+
+---
+
+## 当前状态
+
+- [x] 仓库初始化与结构搭建
+- [x] 核心框架实现（ALS、SGD、扰动）
+- [x] LoRA 基线实现
+- [x] 2×2 析因实验框架
+- [x] 统一评分与资源核算体系
+- [x] 形式化数学文档
+- [x] 29 个单元测试全部通过
+- [ ] GPT-2 规模验证实验
+- [ ] 7B+ 模型规模化实验
+- [ ] RQ1-RQ6 系统性消融实验
+- [ ] 实验报告撰写
+
+---
+
+## License
+
+MIT
