@@ -40,12 +40,13 @@ def load_config(config_path: str) -> dict:
 
 
 def build_dataloader(dataset_name: str, tokenizer, split: str, max_length: int, batch_size: int) -> DataLoader:
-    dataset = load_dataset(dataset_name, split=split)
+    dataset = load_dataset("wikitext", dataset_name, split=split)
     tokenized = dataset.map(
         lambda examples: tokenizer(
             examples["text"], truncation=True, max_length=max_length, padding="max_length"
         ),
         batched=True,
+        remove_columns=["text"],
     )
     tokenized.set_format(type="torch", columns=["input_ids", "attention_mask"])
     return DataLoader(tokenized, batch_size=batch_size, shuffle=(split == "train"))

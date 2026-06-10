@@ -203,20 +203,45 @@ class AltOptTrainer:
                     )
                     self.model = self.peft_bridge.peft_model
                 except ImportError:
-                    logger.info("peft not available, using built-in LoRALayer")
+                    logger.info("peft not available, using built-in LoRALayer + AltOpt")
                     lora_cfg = LoRAConfig(
                         r=cfg.lora_r, alpha=cfg.lora_alpha, dropout=cfg.lora_dropout,
-                        target_modules=cfg.lora_target_modules or ["q_proj", "v_proj", "k_proj", "o_proj"],
+                        target_modules=cfg.lora_target_modules or ["c_attn", "c_proj"],
                     )
                     self.lora_baseline = LoRABaseline(self.model, lora_cfg, lr=cfg.lr)
+                    self.optimizer = self.lora_baseline._optimizer
+
+                # For both PEFT and built-in paths, create AltOpt framework
+                # on the (now LoRA-wrapped) model.
+                # Note: ALS solver won't find nn.Linear modules in LoRA mode,
+                # so it gracefully skips. SGD+perturb alternation still applies.
+                schedule = cfg.phase_schedule or PhaseSchedule(
+                    phases=[
+                        PhaseConfig(phase=Phase.SGD, steps=100, lr=cfg.lr),
+                        PhaseConfig(phase=Phase.PERTURB, steps=1, noise_scale=1e-3),
+                    ],
+                    cycles=3,
+                )
+                self.altopt = AltOptFramework(self.model, schedule)
             else:
                 # Protocol D: LoRA + AdamW
                 lora_cfg = LoRAConfig(
                     r=cfg.lora_r, alpha=cfg.lora_alpha, dropout=cfg.lora_dropout,
-                    target_modules=cfg.lora_target_modules or ["q_proj", "v_proj", "k_proj", "o_proj"],
+                    target_modules=cfg.lora_target_modules or ["c_attn", "c_proj"],
                 )
                 self.lora_baseline = LoRABaseline(self.model, lora_cfg, lr=cfg.lr)
-                self.optimizer = self.lora_baseline._optimizer
+                self.optimizer = getattr(self.lora_baseline, "_optimizer", None)
+                if self.optimizer is None:
+                    logger.warning(
+                        "LoRA: no adapters applied (no matching Linear modules in model). "
+                        "Falling back to full-rank AdamW."
+                    )
+                    from torch.optim import AdamW
+                    self.optimizer = AdamW(
+                        filter(lambda p: p.requires_grad, self.model.parameters()),
+                        lr=cfg.lr, betas=cfg.adamw_betas, weight_decay=cfg.weight_decay,
+                    )
+                    self.lora_baseline = None
             return
 
         # Full-rank protocols (A, B)
