@@ -197,8 +197,13 @@ class AltOptTrainer:
         if cfg.parameter_form == "lora":
             if cfg.optimizer_type == "altopt":
                 # Protocol C: LoRA + AltOpt — try PEFT bridge first, fall back to built-in
+                peft_ok = False
                 try:
-                    from .peft_bridge import PeftBridge
+                    from .peft_bridge import PeftBridge, model_supports_lora
+
+                    if not model_supports_lora(self.model):
+                        raise ValueError("Model architecture does not support PEFT LoRA")
+
                     self.peft_bridge = PeftBridge(
                         self.model,
                         r=cfg.lora_r,
@@ -207,8 +212,13 @@ class AltOptTrainer:
                         target_modules=cfg.lora_target_modules,
                     )
                     self.model = self.peft_bridge.peft_model
-                except ImportError:
-                    logger.info("peft not available, using built-in LoRALayer + AltOpt")
+                    peft_ok = True
+                except (ImportError, ValueError, RuntimeError) as e:
+                    logger.info("PEFT unavailable or incompatible for this model: %s. "
+                                "Falling back to built-in LoRALayer.", e)
+                    peft_ok = False
+
+                if not peft_ok:
                     lora_cfg = LoRAConfig(
                         r=cfg.lora_r, alpha=cfg.lora_alpha, dropout=cfg.lora_dropout,
                         target_modules=cfg.lora_target_modules or ["c_attn", "c_proj"],

@@ -43,6 +43,75 @@ class AdapterInfo:
     layer_name: str
 
 
+def detect_target_modules(model: nn.Module) -> list[str]:
+    """
+    Auto-detect LoRA target modules based on model architecture.
+
+    Scans the model's named modules and returns the appropriate target
+    module names for the detected architecture. This prevents the
+    hardcoded Llama defaults from silently failing on GPT-2/OPT models.
+
+    Detection strategy:
+      1. Check model.config.architectures or model_type
+      2. Scan for known module name patterns
+      3. Return appropriate list or empty list if LoRA is unsupported
+
+    Returns:
+        list of module name suffixes to target, or empty list if unsupported.
+    """
+    model_type = ""
+    if hasattr(model, "config"):
+        model_type = getattr(model.config, "model_type", "").lower()
+
+    architecture_specific = {
+        "gpt2": ["c_attn", "c_proj"],
+        "gpt_neo": ["attn.attention", "mlp"],
+        "opt": ["q_proj", "v_proj", "k_proj", "out_proj"],
+        "llama": ["q_proj", "v_proj", "k_proj", "o_proj"],
+        "mistral": ["q_proj", "v_proj", "k_proj", "o_proj"],
+        "qwen2": ["q_proj", "v_proj", "k_proj", "o_proj"],
+        "falcon": ["query_key_value", "dense"],
+        "bloom": ["query_key_value", "dense"],
+        "phi": ["q_proj", "v_proj", "k_proj", "o_proj"],
+    }
+
+    if model_type in architecture_specific:
+        detected = architecture_specific[model_type]
+        logger.info("Architecture '%s' → target_modules=%s", model_type, detected)
+        return detected
+
+    for name, _ in model.named_modules():
+        name_lower = name.lower()
+        if "q_proj" in name_lower or "k_proj" in name_lower:
+            logger.info("Detected Llama-style modules → target_modules=['q_proj','v_proj','k_proj','o_proj']")
+            return ["q_proj", "v_proj", "k_proj", "o_proj"]
+        if "c_attn" in name_lower:
+            logger.info("Detected GPT-2-style modules → target_modules=['c_attn','c_proj']")
+            return ["c_attn", "c_proj"]
+
+    logger.warning(
+        "Could not detect model architecture. Defaulting to Llama target_modules. "
+        "If this fails, specify target_modules explicitly."
+    )
+    return ["q_proj", "v_proj", "k_proj", "o_proj"]
+
+
+def model_supports_lora(model: nn.Module) -> bool:
+    """
+    Check whether a model's architecture supports standard PEFT LoRA.
+
+    GPT-2 (Conv1D layers) returns False because PEFT can only inject
+    LoRA adapters into nn.Linear modules.
+    """
+    if hasattr(model, "config"):
+        model_type = getattr(model.config, "model_type", "").lower()
+        if model_type == "gpt2":
+            return False
+
+    has_linear = any(isinstance(m, nn.Linear) for m in model.modules())
+    return has_linear
+
+
 class PeftBridge:
     """
     Adapts AltOpt to operate on PEFT-injected LoRA adapters.
@@ -65,7 +134,7 @@ class PeftBridge:
             raise ImportError("peft is required for PeftBridge. Install with: pip install peft")
 
         if target_modules is None:
-            target_modules = ["q_proj", "v_proj", "k_proj", "o_proj"]
+            target_modules = detect_target_modules(base_model)
 
         peft_config = PeftLoraConfig(
             r=r,

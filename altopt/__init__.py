@@ -29,12 +29,14 @@ from .checkpoint import CheckpointManager
 from .evaluation import Evaluator
 
 try:
-    from .peft_bridge import PeftBridge, AdapterInfo
+    from .peft_bridge import PeftBridge, AdapterInfo, detect_target_modules, model_supports_lora
     _has_peft = True
 except ImportError:
     _has_peft = False
     PeftBridge = None  # type: ignore
     AdapterInfo = None  # type: ignore
+    detect_target_modules = None  # type: ignore
+    model_supports_lora = None  # type: ignore
 
 try:
     from .model_utils import (
