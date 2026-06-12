@@ -35,8 +35,8 @@ except ImportError:
 class AdapterInfo:
     """Metadata for a single LoRA adapter within a layer."""
 
-    lora_A: nn.Parameter
-    lora_B: nn.Parameter
+    lora_A: nn.Module
+    lora_B: nn.Module
     base_weight: torch.Tensor
     r: int
     scaling: float
@@ -182,8 +182,11 @@ class PeftBridge:
 
     def trainable_parameters(self):
         for info in self._adapter_map.values():
-            yield info.lora_A
-            yield info.lora_B
+            for attr in [info.lora_A, info.lora_B]:
+                if isinstance(attr, nn.Parameter):
+                    yield attr
+                elif isinstance(attr, nn.Module):
+                    yield from attr.parameters()
 
     def num_trainable_params(self) -> int:
         return sum(p.numel() for p in self.trainable_parameters())
