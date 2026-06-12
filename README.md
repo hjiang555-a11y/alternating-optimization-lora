@@ -6,6 +6,34 @@
 
 ---
 
+## 📑 文档导航
+
+| 文档 | 说明 |
+|------|------|
+| **综合报告** | [`docs/synthesis-report.md`](docs/synthesis-report.md) — 全部实验结论、缺陷清单、后续路线图 |
+| **数学分析** | [`docs/math-analysis.md`](docs/math-analysis.md) — ALS loss 量级、收敛理论、扰动正则化、文献引用 |
+| **AltOpt 形式化** | [`docs/framework.md`](docs/framework.md) — 框架的数学定义与推导 |
+| **比较难题分析** | [`docs/comparison-challenges.md`](docs/comparison-challenges.md) — 公平比较的方法论分析 |
+| **相关工作** | [`docs/literature.md`](docs/literature.md) — 文献综述 |
+
+### 实验报告
+
+| # | 报告 | 模型 | 步数 | 关键发现 |
+|---|------|------|------|----------|
+| 1 | [`report-001`](docs/experiment-report-001.md) | GPT-2 | 40 | 2×2 框架可行；Protocol C FLOPs 效率 |
+| 2 | [`report-002`](docs/experiment-report-002.md) | OPT-125m | 100 | LoRA 主导；ALS:SGD=1:20 最优 |
+| 3 | [`report-003`](docs/experiment-report-003.md) | — | — | 7B 基础设施 + 消融框架完成 |
+| 4 | [`report-004`](docs/experiment-report-004.md) | GPT-2 | 12 | 可复现性差；扰动正则化；LoRA skip 修复 |
+| 5 | [`report-005`](docs/experiment-report-005.md) | OPT-125m | 200 | 3-seed 统计 2×2；PEFT vs 内置 LoRA 差异；交互效应 1197 |
+
+### 缺陷分析
+
+| # | 文档 | 内容 |
+|---|------|------|
+| 1 | [`flaw-analysis-001`](docs/flaw-analysis-001.md) | GPT-2 Conv1D 架构与 LoRA 不兼容性分析 |
+
+---
+
 ## 项目目标 (Project Objectives)
 
 ### 总体目标
@@ -239,22 +267,17 @@ python experiments/analysis.py logs/
 
 ## 当前状态
 
-- [x] 仓库初始化与结构搭建
-- [x] 核心框架实现（ALS、SGD、扰动）
-- [x] LoRA 基线实现
-- [x] 2×2 析因实验框架
-- [x] 统一评分与资源核算体系
-- [x] 形式化数学文档
-- [x] 67 个单元测试全部通过
-- [x] GPT-2 规模验证实验 (报告 #001)
-- [x] OPT-125m 2×2 + 消融 (报告 #002)
-- [x] 7B 模型加载 + DeepSpeed ZeRO 集成 (Phase 2)
-- [x] RQ1-RQ6 系统性消融实验框架 (Phase 3)
-- [x] 可视化工具包 (Phase 4)
-- [x] 实验报告 #003 (规模化+消融框架)
-- [ ] 消融实验数据产出 (运行 ablation.py)
-- [ ] Llama-2-7B 规模化实验
-- [ ] 13B/70B 模型扩展验证
+- [x] 核心框架实现（ALS、SGD、扰动、LoRA）
+- [x] 2×2 析因实验框架 + 统一评分 + FLOPs 核算
+- [x] 7B 模型加载 + DeepSpeed ZeRO 集成
+- [x] RQ1-RQ6 系统性消融实验框架
+- [x] 可视化工具包（6 种图表类型）
+- [x] **115 tests passing**, 5681 LOC
+- [x] 5 份实验报告 + 1 份综合报告 + 1 份数学分析
+- [x] 实验 Round 5 完成: 200 steps × 3 seeds × 4 protocols
+- [ ] Protocol C 切换到内置 LoRA 重新评估
+- [ ] 更大 SGD 步数测试 AltOpt 交叉点假说
+- [ ] Llama-2-7B GPU 实验
 
 ---
 

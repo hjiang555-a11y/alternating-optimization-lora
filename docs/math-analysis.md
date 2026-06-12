@@ -279,4 +279,33 @@ LoRA 将参数更新限制在 low-rank 子空间 $S_r = \{BA : B \in \mathbb{R}^
 
 ---
 
-*文献引用将在 librarian 搜索完成后补充*
+## 参考文献
+
+### 交替优化/BCD 在深度学习中的应用
+
+| 论文 | 关键发现 |
+|------|----------|
+| Zeng et al. (2019) "Global Convergence of Block Coordinate Descent in Deep Learning", ICML. [arXiv:1803.00225](https://arxiv.org/abs/1803.00225) | 在 KL 不等式框架下，BCD 以 O(1/k) 速率收敛到临界点。关键假设：激活函数的 Lipschitz 连续性。**不保证收敛到全局最优**。 |
+| Wang et al. (2018) "Accelerated Gradient-free Neural Network Training by Multi-convex Alternating Optimization". [arXiv:1811.04187](https://arxiv.org/abs/1811.04187) | mDLAM 算法通过 Nesterov 加速达到线性收敛速率。表明交替方法在适当设计下**可以快于** SGD 的次线性收敛。 |
+| Choromanska et al. (2019) "Beyond Backprop: Online Alternating Minimization with Auxiliary Variables". [arXiv:1806.09077](https://arxiv.org/abs/1806.09077) | 首个随机交替最小化方法（AM-Adam, AM-mem），支持在线/小批量训练。证明 AM 在随机设置中收敛。 |
+| Taylor et al. (2016) "Training Neural Networks Without Gradients: A Scalable ADMM Approach", ICML. | ADMM 用于 DNN 训练的开创性工作，将网络逐层分解为可并行的子问题。 |
+| Wang et al. (2019) "ADMM for Efficient Deep Learning with Global Convergence". [arXiv:1905.13611](https://arxiv.org/abs/1905.13611) | dlADMM 首次证明 ADMM 类方法在 DNN 中的全局收敛性。后向-前向交替更新。 |
+
+### LoRA 收敛理论与动态
+
+| 论文 | 关键发现 |
+|------|----------|
+| Anonymous (2025) "On the Convergence Rate of LoRA Gradient Descent". [arXiv:2512.18248](https://arxiv.org/abs/2512.18248) | 首次给出 LoRA GD 的非渐近收敛分析：O(1/log T) 速率（无有界假设）。解释了 LoRA 在非 Lipschitz 光滑目标上仍能收敛。 |
+| Anonymous "Balanced Low-Rank Adaptation (BaLoRA)". [OpenReview](https://openreview.net/pdf/4ae646f1e51e5a293e9187030f0450d9369b38c0.pdf) | **平衡的 LoRA 极小值有最优条件数**。BaLoRA 通过投影到平衡流形加速收敛。解释了为什么 LoRA 协议 cross-seed CV 极低（总是收敛到良好条件的极小值）。 |
+| Kim et al. (2025) "LoRA Training Provably Converges to a Low-Rank Global Minimum Or It Fails Loudly". ICML. | LoRA 在"通用域"中收敛到低秩全局最小值或高秩发散解。零初始化和 weight decay 诱导了向低秩极小值的隐式偏置。 |
+| "Learning Rate Scaling across LoRA Ranks". [arXiv:2602.06204](https://arxiv.org/abs/2602.06204) | LoRA 的学习率应与秩无关（Init[B] + α=1）。学习率从 LoRA 迁移到全微调是可行的。 |
+| "RefLoRA: Refactored Low-Rank Adaptation". [arXiv:2505.18877](https://arxiv.org/abs/2505.18877) | 通过最优低秩分解使 loss landscape 更平坦，加速收敛。与我们的扰动-平坦极小值假说一致。 |
+
+### 扰动、平坦极小值与泛化
+
+| 论文 | 关键发现 |
+|------|----------|
+| Foret et al. (2021) "Sharpness-Aware Minimization (SAM)", ICLR. | SAM 通过在参数邻域内最小化最坏情况 loss 来寻找平坦极小值。**仅高斯噪声不够**（与我们的观察一致：扰动效果非单调）。 |
+| Andriushchenko & Flammarion (2022) "Towards Understanding Sharpness-Aware Minimization", ICML. [PDF](https://proceedings.mlr.press/v162/andriushchenko22a/andriushchenko22a.pdf) | SAM 的泛化优势来自**最坏情况**扰动而非平均情况。对角线网络上的隐式偏置分析。在噪声标签设置中 SAM 也有效。 |
+| Li et al. (2024) "Revisiting Random Weight Perturbation for Efficiently Improving Generalization". [OpenReview](https://openreview.net/pdf?id=WbbgOHpoPX) | **泛化-收敛权衡**: 更大的扰动方差 → 更好的泛化但更慢的收敛。m-RWP 通过混合原始 loss 和 Bayes loss 改善权衡。**直接解释了我们的观察**: 12步扰动改善 eval ppl 但恶化 train loss。 |
+| Dziugaite & Roy (2017) "Computing Nonvacuous Generalization Bounds for Deep Neural Networks", ICML. | PAC-Bayes 泛化界: 参数扰动方差越大 → 界越紧 → 泛化越好。 |
