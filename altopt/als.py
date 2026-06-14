@@ -142,6 +142,10 @@ class ALSBlockSolver:
             if X.dim() == 3:
                 X = X.reshape(-1, d_in)
 
+            # Cast to float32 for numerical stability (Cholesky requires fp32/fp64)
+            X_f32 = X.to(dtype=torch.float32)
+            weight_f32 = weight.to(dtype=torch.float32)
+
             # ── Get targets via backward ──
             # For post-training: target is to minimize reconstruction or task loss
             # Simplified: use the current output as reference for least squares
@@ -154,32 +158,25 @@ class ALSBlockSolver:
                 start = i * block_size
                 end = min(start + block_size, d_out)
 
-                # Current block of weights
-                W_block = weight[start:end, :].clone()  # [b, d_in]
+                W_block = weight_f32[start:end, :].clone()
 
-                # Solve: W_new = (X^T X + λI)^{-1} X^T Y
-                XtX = X.T @ X  # [d_in, d_in]
-                reg = self.reg_lambda * torch.eye(d_in, device=device, dtype=X.dtype)
+                XtX = X_f32.T @ X_f32
+                reg = self.reg_lambda * torch.eye(d_in, device=device, dtype=torch.float32)
                 XtX_reg = XtX + reg
 
-                # Cholesky for stability
                 try:
                     L = torch.linalg.cholesky(XtX_reg)
-                    XtX_inv_Xt = torch.cholesky_solve(X.T, L)  # [d_in, batch*n]
+                    XtX_inv_Xt = torch.cholesky_solve(X_f32.T, L)
                 except RuntimeError:
-                    # Fallback to pseudoinverse if Cholesky fails
-                    XtX_inv_Xt = torch.linalg.lstsq(XtX_reg, X.T).solution
+                    XtX_inv_Xt = torch.linalg.lstsq(XtX_reg, X_f32.T).solution
 
-                # Target: current forward output (least squares approximation)
-                Y = X @ W_block.T  # [N, b]
+                Y = X_f32 @ W_block.T
 
-                W_new = (Y.T @ XtX_inv_Xt.T).to(weight.dtype)  # [b, d_in]
+                W_new = (Y.T @ XtX_inv_Xt.T).to(weight.dtype)
 
-                # Update weights in-place
                 weight[start:end, :] = W_new
 
-                # Track loss
-                recon_error = torch.norm(X @ W_new.T - Y) ** 2
+                recon_error = torch.norm(X_f32 @ W_new.T - Y) ** 2
                 total_loss += recon_error.item()
 
             return total_loss, n_blocks
