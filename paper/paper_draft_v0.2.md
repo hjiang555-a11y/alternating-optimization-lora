@@ -21,9 +21,11 @@ Our results establish the 2×2 factorial design as rigorous methodology for dise
 
 ## 1. Introduction
 
-Post-training — adapting a pretrained LLM to downstream tasks — is dominated by two paradigms. The first, exemplified by LoRA (Hu et al., 2022), constrains weight updates to a low-rank subspace $\Delta W = BA$ with $r \ll \min(d_{\text{out}}, d_{\text{in}})$, dramatically reducing trainable parameters. The second, which we term ASP (ALS-SGD-Perturbation), keeps parameters at full rank but innovates on *how* they are updated — alternating between block-wise exact least-squares solving (ALS), stochastic gradient descent (SGD), and parameter-space perturbation.
+Post-training — adapting a pretrained language model to downstream tasks through additional parameter updates — has become the dominant paradigm for deploying LLMs. The vast majority of practitioners use LoRA (Hu et al., 2022), which constrains weight updates to a low-rank subspace $\Delta W = BA$ with $r \ll \min(d_{\text{out}}, d_{\text{in}})$, dramatically reducing trainable parameters. An alternative, which we term ASP (ALS-SGD-Perturbation), keeps parameters at full rank but innovates on *how* they are updated — alternating between block-wise exact least-squares solving (ALS), stochastic gradient descent (SGD), and parameter-space perturbation.
 
-Comparing these two approaches faces a fundamental confound: ASP is an optimizer innovation (determining *how* parameters are updated), while LoRA is a parameter structure innovation (determining *what form* the update takes). Any direct numerical comparison inevitably conflates these two independent variables, making performance attribution impossible. Furthermore, ALS matrix inversion and SGD gradient computation have fundamentally different computational cost profiles, requiring careful resource normalization.
+**Why this comparison matters.** Three factors motivate rigorous comparison of these paradigms. First, the PEFT literature exhibits a systematic confound: most studies compare LoRA+AdamW against full fine-tuning, implicitly bundling optimizer choice with parameter form. A recent audit of 64 LoRA papers found that fewer than 30% tune learning rates, and only one simultaneously considers three hyperparameters (Lee et al., 2026) — raising questions about whether reported gains reflect genuine methodological improvements. Second, the prevailing belief that "the choice of optimizer shouldn't be a major concern" for LoRA (Raschka, 2023) has been challenged by recent work showing optimizer design significantly affects LoRA convergence (OPLoRA, LoRA-RITE, Scaled AdamW). Third, alternatives to backpropagation-based optimization — including block coordinate descent (BCD), ADMM, and alternating minimization — have a decade-long research history (Zeng et al., 2019; Wang et al., 2018; Choromanska et al., 2019; Taylor et al., 2016) motivated by backpropagation's fundamental limitations: vanishing gradients, sequential layer dependency preventing parallelization, and difficulty handling non-differentiable components. Whether these alternatives offer advantages over gradient-based methods in the post-training context remains an open question — but answering it requires a methodology that disentangles optimizer effects from parameter form effects, which does not currently exist in the literature.
+
+Comparing ASP and LoRA faces a fundamental confound: ASP is an optimizer innovation (determining *how* parameters are updated), while LoRA is a parameter structure innovation (determining *what form* the update takes). Any direct numerical comparison inevitably conflates these two independent variables, making performance attribution impossible. Furthermore, ALS matrix inversion and SGD gradient computation have fundamentally different computational cost profiles, requiring careful resource normalization. A recent survey of PEFT methods (Lialin et al., 2023) explicitly notes the "limited theoretical understanding" of how optimizer choice interacts with parameter-efficient architectures — precisely the gap this work addresses.
 
 **Contributions.** This paper makes five contributions:
 
@@ -433,6 +435,10 @@ This paper underwent four rounds of peer review. All substantive concerns were a
 [23] Xu, L.-W., et al. (2013). Parametric bootstrap tests for two-way ANOVA with heteroscedasticity. *Computational Statistics & Data Analysis*.
 
 [24] Noci, L., et al. (2022). Signal Propagation in Transformers: Theoretical Perspectives and the Role of Skip Connections. *NeurIPS*.
+
+[25] Lee, Y., et al. (2026). Learning Rate Matters: Vanilla LoRA May Suffice for LLM Fine-tuning. arXiv:2602.04998.
+
+[26] Raschka, S. (2023). Practical Tips for Finetuning LLMs Using LoRA. *Lightning AI Magazine*.
 
 ---
 
