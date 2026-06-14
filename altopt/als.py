@@ -138,45 +138,41 @@ class ALSBlockSolver:
             if not activations:
                 return 0.0, 0
 
-            X = activations[0]  # [batch * seq_len, d_in] or [batch, seq_len, d_in]
+            X = activations[0]
             if X.dim() == 3:
                 X = X.reshape(-1, d_in)
 
-            # Cast to float32 for numerical stability (Cholesky requires fp32/fp64)
-            X_f32 = X.to(dtype=torch.float32)
-            weight_f32 = weight.to(dtype=torch.float32)
-
-            # ── Get targets via backward ──
-            # For post-training: target is to minimize reconstruction or task loss
-            # Simplified: use the current output as reference for least squares
-            # In practice, this uses a separate target computation
+            X_f32 = X.detach().float()
+            W_f32 = weight.detach().float()
 
             n_blocks = (d_out + block_size - 1) // block_size
             total_loss = 0.0
+
+            XtX = X_f32.T @ X_f32
+            reg = self.reg_lambda * torch.eye(d_in, device=X_f32.device, dtype=torch.float32)
+            XtX_reg = XtX + reg
+
+            try:
+                L = torch.linalg.cholesky(XtX_reg)
+            except RuntimeError:
+                L = None
 
             for i in range(n_blocks):
                 start = i * block_size
                 end = min(start + block_size, d_out)
 
-                W_block = weight_f32[start:end, :].clone()
+                W_block = W_f32[start:end, :]
+                Y_block = X_f32 @ W_block.T
+                XtY = X_f32.T @ Y_block
 
-                XtX = X_f32.T @ X_f32
-                reg = self.reg_lambda * torch.eye(d_in, device=device, dtype=torch.float32)
-                XtX_reg = XtX + reg
+                if L is not None:
+                    W_new_block = torch.cholesky_solve(XtY, L).T
+                else:
+                    W_new_block = torch.linalg.lstsq(XtX_reg, XtY).solution.T
 
-                try:
-                    L = torch.linalg.cholesky(XtX_reg)
-                    XtX_inv_Xt = torch.cholesky_solve(X_f32.T, L)
-                except RuntimeError:
-                    XtX_inv_Xt = torch.linalg.lstsq(XtX_reg, X_f32.T).solution
+                weight[start:end, :] = W_new_block.to(device=device, dtype=weight.dtype)
 
-                Y = X_f32 @ W_block.T
-
-                W_new = (Y.T @ XtX_inv_Xt.T).to(weight.dtype)
-
-                weight[start:end, :] = W_new
-
-                recon_error = torch.norm(X_f32 @ W_new.T - Y) ** 2
+                recon_error = torch.norm(X_f32 @ W_new_block.T - Y_block) ** 2
                 total_loss += recon_error.item()
 
             return total_loss, n_blocks
