@@ -1,0 +1,105 @@
+# Alternating Optimization vs LoRA — Qwen2.5-7B Scale Experiment
+# Requires 2× RTX 5090 (32GB each) with DeepSpeed ZeRO-2
+#
+# Qwen2.5-7B: 7.6B params, 28 layers, Llama architecture
+# Memory estimate: ~43 GB total with ZeRO-2, ~21.5 GB per GPU
+#
+# NOTE: Qwen2.5-7B has 28 layers — near the depth boundary (≥28 layers divergent for ASP).
+# This is a critical test of whether the depth boundary holds on GPU with bf16 precision.
+
+base:
+  model: "Qwen/Qwen2.5-7B"
+  dataset: "wikitext-2-raw-v1"
+  max_seq_length: 2048
+  per_device_batch_size: 2
+  gradient_accumulation_steps: 8
+  total_budget:
+    type: "flops"
+    value: 1e13
+  eval_steps: 50
+  save_steps: 200
+  seed: 42
+
+protocol_a:
+  optimizer: "altopt"
+  parameter_form: "full_rank"
+  altopt:
+    cycles: 2
+    phases:
+      - type: "als"
+        steps: 1
+        block_size: 2048
+      - type: "sgd"
+        steps: 50
+        lr: 5.0e-5
+      - type: "perturb"
+        steps: 1
+        noise_scale: 5.0e-4
+    als:
+      reg_lambda: 1.0e-4
+    sgd:
+      momentum: 0.9
+      weight_decay: 0.01
+    perturbation:
+      noise_type: "gaussian"
+      decay_schedule: "cosine"
+
+protocol_b:
+  optimizer: "adamw"
+  parameter_form: "full_rank"
+  adamw:
+    lr: 1.0e-4
+    betas: [0.9, 0.999]
+    weight_decay: 0.01
+
+protocol_c:
+  optimizer: "altopt"
+  parameter_form: "lora"
+  lora:
+    r: 8
+    alpha: 16.0
+    dropout: 0.05
+    target_modules: ["q_proj", "v_proj", "k_proj", "o_proj"]
+  altopt:
+    cycles: 2
+    phases:
+      - type: "als"
+        steps: 1
+        block_size: 1024
+      - type: "sgd"
+        steps: 50
+        lr: 1.0e-4
+      - type: "perturb"
+        steps: 1
+        noise_scale: 5.0e-4
+
+protocol_d:
+  optimizer: "adamw"
+  parameter_form: "lora"
+  lora:
+    r: 8
+    alpha: 16.0
+    dropout: 0.05
+    target_modules: ["q_proj", "v_proj", "k_proj", "o_proj"]
+  adamw:
+    lr: 1.0e-4
+    betas: [0.9, 0.999]
+    weight_decay: 0.01
+
+deepspeed:
+  zero_stage: 2
+  bf16: true
+  offload_optimizer: false
+
+resource_tracking:
+  track_flops: true
+  track_memory: true
+  track_wall_time: true
+
+logging:
+  wandb:
+    enabled: false
+    project: "altopt-vs-lora-7b-qwen"
+  local:
+    log_dir: "logs/qwen25_7b/"
+    save_checkpoints: true
