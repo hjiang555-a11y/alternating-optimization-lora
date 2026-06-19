@@ -247,11 +247,9 @@ def main():
         logger.info(f"  GPU {i}: {props.name}, {props.total_memory/1e9:.1f}GB")
     logger.info("=" * 70)
 
-    # Full-rank protocols (A, B) need DeepSpeed ZeRO-2 (2 GPUs).
-    # LoRA protocols (C, D) have only ~590K trainable params, single GPU suffices.
+    # PHASE A: LoRA-only protocols (C, D) — single GPU, no DeepSpeed.
+    # PHASE B: Full-rank protocols (A, B) require DeepSpeed ZeRO-2 fix (pending).
     protocols = [
-        ("A", "altopt", "full_rank"),
-        ("B", "adamw", "full_rank"),
         ("C", "altopt", "lora"),
         ("D", "adamw", "lora"),
     ]
