@@ -249,6 +249,17 @@ class DeepSpeedEngine:
             training_data: Optional dataset (for auto batch size inference).
             config_params: Optional overrides for the DeepSpeed config dict.
         """
+        # Set distributed env vars so DeepSpeed skips MPI discovery and uses NCCL.
+        # torchrun sets these automatically; for single-process, default to 1 GPU.
+        os.environ.setdefault("MASTER_ADDR", "localhost")
+        os.environ.setdefault("MASTER_PORT", "29500")
+        os.environ.setdefault("RANK", "0")
+        os.environ.setdefault("WORLD_SIZE", str(max(1, torch.cuda.device_count())))
+        os.environ.setdefault("LOCAL_RANK", "0")
+
+        # Move model to CPU so DeepSpeed can manage device placement
+        self.model = self.model.cpu()
+
         ds_config = self.config.to_dict()
 
         # Apply overrides

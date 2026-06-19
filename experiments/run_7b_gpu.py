@@ -142,6 +142,8 @@ def run_protocol(protocol_label, opt_type, param_form, seed, n_steps):
     train_dl = build_dataloader(tokenizer, "train", MAX_SEQ_LEN, BATCH_SIZE, N_TRAIN)
     eval_dl = build_dataloader(tokenizer, "test", MAX_SEQ_LEN, BATCH_SIZE, N_EVAL)
 
+    use_ds = (param_form == "full_rank")  # DeepSpeed only for full-rank 7B
+
     config = TrainerConfig(
         protocol=protocol_label,
         optimizer_type=opt_type,
@@ -152,7 +154,9 @@ def run_protocol(protocol_label, opt_type, param_form, seed, n_steps):
         seed=seed,
         eval_every=EVAL_EVERY,
         save_every=SAVE_EVERY,
-        use_deepspeed=False,
+        use_deepspeed=use_ds,
+        deepspeed_zero_stage=2,
+        deepspeed_bf16=True,
         gradient_accumulation_steps=GRAD_ACCUM,
         lora_r=8,
         lora_alpha=16.0,
@@ -231,9 +235,11 @@ def main():
         logger.info(f"  GPU {i}: {props.name}, {props.total_memory/1e9:.1f}GB")
     logger.info("=" * 70)
 
-    # Full-rank protocols (A, B) need functional DeepSpeed ZeRO-2 — skip for now.
-    # LoRA protocols (C, D) have only ~590K trainable params, no DeepSpeed needed.
+    # Full-rank protocols (A, B) need DeepSpeed ZeRO-2 (2 GPUs).
+    # LoRA protocols (C, D) have only ~590K trainable params, single GPU suffices.
     protocols = [
+        ("A", "altopt", "full_rank"),
+        ("B", "adamw", "full_rank"),
         ("C", "altopt", "lora"),
         ("D", "adamw", "lora"),
     ]
