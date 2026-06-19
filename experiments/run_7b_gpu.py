@@ -127,13 +127,25 @@ def run_protocol(protocol_label, opt_type, param_form, seed, n_steps):
 
     # Load model (fresh for each run to avoid state leakage)
     logger.info("Loading model: %s", MODEL_NAME)
-    model = AutoModelForCausalLM.from_pretrained(
-        MODEL_NAME,
-        torch_dtype=torch.bfloat16,
-        device_map="auto",
-        trust_remote_code=False,
-        local_files_only=True,
-    )
+    use_ds = (param_form == "full_rank")  # DeepSpeed only for full-rank 7B
+    if use_ds:
+        # Load to CPU — DeepSpeed manages device placement
+        model = AutoModelForCausalLM.from_pretrained(
+            MODEL_NAME,
+            torch_dtype=torch.bfloat16,
+            device_map=None,
+            trust_remote_code=False,
+            local_files_only=True,
+        )
+    else:
+        # LoRA protocols: use device_map="auto" for direct GPU placement
+        model = AutoModelForCausalLM.from_pretrained(
+            MODEL_NAME,
+            torch_dtype=torch.bfloat16,
+            device_map="auto",
+            trust_remote_code=False,
+            local_files_only=True,
+        )
     model.gradient_checkpointing_enable()
 
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, trust_remote_code=False,
@@ -143,8 +155,6 @@ def run_protocol(protocol_label, opt_type, param_form, seed, n_steps):
 
     train_dl = build_dataloader(tokenizer, "train", MAX_SEQ_LEN, BATCH_SIZE, N_TRAIN)
     eval_dl = build_dataloader(tokenizer, "test", MAX_SEQ_LEN, BATCH_SIZE, N_EVAL)
-
-    use_ds = (param_form == "full_rank")  # DeepSpeed only for full-rank 7B
 
     config = TrainerConfig(
         protocol=protocol_label,
