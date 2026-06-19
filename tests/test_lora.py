@@ -55,6 +55,31 @@ class TestLoRAConfig:
 class TestLoRALayer:
     """Tests for the LoRALayer wrapper."""
 
+    def test_lora_params_on_base_device(self):
+        """LoRA parameters must be on the same device as the base layer."""
+        if not torch.cuda.is_available():
+            pytest.skip("CUDA not available")
+        base = nn.Linear(64, 32).to("cuda")
+        config = LoRAConfig(r=4)
+        lora = LoRALayer(base, config)
+
+        assert lora.lora_A.device == base.weight.device, \
+            f"lora_A on {lora.lora_A.device}, expected {base.weight.device}"
+        assert lora.lora_B.device == base.weight.device, \
+            f"lora_B on {lora.lora_B.device}, expected {base.weight.device}"
+
+    def test_forward_cuda_no_device_mismatch(self):
+        """Forward pass must work when base layer is on CUDA."""
+        if not torch.cuda.is_available():
+            pytest.skip("CUDA not available")
+        base = nn.Linear(64, 32).to("cuda")
+        config = LoRAConfig(r=4)
+        lora = LoRALayer(base, config)
+
+        x = torch.randn(8, 64, device="cuda")
+        out = lora(x)
+        assert out.shape == (8, 32)
+
     def test_forward_shape_preserved(self):
         base = nn.Linear(64, 32)
         config = LoRAConfig(r=4, alpha=8.0)
