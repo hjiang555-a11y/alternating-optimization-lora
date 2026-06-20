@@ -39,12 +39,12 @@ for seed in 42 123 456; do
     echo "" | tee -a "$LOGFILE"
     echo "--- Seed $seed @ $(date) ---" | tee -a "$LOGFILE"
 
-    torchrun \
+    "$VENV_DIR/bin/python" -m torch.distributed.run \
         --nproc_per_node=2 \
         --master_port=$((29500 + seed)) \
-        "$VENV_DIR/bin/python" -u "$PROJ_DIR/experiments/run_7b_fsdp.py" \
+        "$PROJ_DIR/experiments/run_7b_fsdp.py" \
         "$seed" 800 \
-        2>&1 | tee -a "$LOGFILE"
+        2>&1 | stdbuf -oL tee -a "$LOGFILE"
 
     echo "--- Seed $seed done @ $(date) ---" | tee -a "$LOGFILE"
 done
@@ -66,4 +66,4 @@ for proto in ['A', 'B']:
         d = json.loads(f.read_text())
         if d.get('status') == 'success':
             print(f'{f.stem}: ppl={d[\"perplexity\"]:.2f}, time={d[\"wall_time_s\"]:.0f}s')
-" 2>&1 | tee -a "$LOGFILE"
+" 2>&1 | stdbuf -oL tee -a "$LOGFILE"

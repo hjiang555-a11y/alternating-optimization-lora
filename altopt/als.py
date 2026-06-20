@@ -72,9 +72,9 @@ class ALSBlockSolver:
         step_size: float = 0.01,
         device: Optional[torch.device] = None,
         depth_decay_beta: float = 2.0,
-        clip_threshold: float = 0.05,
+        clip_threshold: float = float("inf"),
         skip_early_ratio: float = 0.5,
-        clip_catastrophic: float = 0.5,
+        clip_catastrophic: float = float("inf"),
     ):
         self.model = model
         self.reg_lambda = reg_lambda

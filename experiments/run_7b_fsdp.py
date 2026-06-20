@@ -73,6 +73,7 @@ def main():
     # ── Distributed init ──
     local_rank = int(os.environ.get("LOCAL_RANK", 0))
     torch.cuda.set_device(local_rank)
+    dist.init_process_group(backend="nccl")
 
     # Parse args
     seed = int(sys.argv[1]) if len(sys.argv) > 1 else 42

@@ -403,10 +403,6 @@ class AltOptTrainer:
 
         cfg = self.config
 
-        # Activation checkpointing
-        if cfg.activation_checkpointing and hasattr(self.model, 'gradient_checkpointing_enable'):
-            self.model.gradient_checkpointing_enable()
-
         # ── Snapshot raw modules before FSDP wrapping ──
         self._raw_model = self.model
         # Find lm_head for ALS (FSDP wraps submodules so named_modules() won't work)
@@ -419,7 +415,25 @@ class AltOptTrainer:
             logger.info("FSDP: captured lm_head module before wrapping")
 
         # ── FSDP wrapping ──
-        # transformer_auto_wrap_policy wraps each TransformerBlock separately
+        # Wrap each Qwen2DecoderLayer as separate FSDP unit.
+        # Without this, FSDP flattens ALL 7.6B params → 14GB flat param buffer
+        # → 14GB clone → 35GB peak > 32GB. Per-layer wrapping: ~233M/layer →
+        # 466MB per FSDP unit, well within limits.
+        auto_wrap_cls = frozenset()  # empty = wrap top-level only at first
+        # Detect transformer block class
+        for _mod in self.model.modules():
+            cls_name = type(_mod).__name__
+            if "DecoderLayer" in cls_name or "TransformerBlock" in cls_name:
+                auto_wrap_cls = frozenset({type(_mod)})
+                break
+        if auto_wrap_cls:
+            wrap_policy = partial(
+                transformer_auto_wrap_policy,
+                transformer_layer_cls=auto_wrap_cls,
+            )
+        else:
+            wrap_policy = None
+
         self.model = FSDP(
             self.model,
             sharding_strategy=ShardingStrategy.FULL_SHARD,
@@ -432,6 +446,7 @@ class AltOptTrainer:
             use_orig_params=True,
             device_id=torch.cuda.current_device(),
             sync_module_states=True,
+            auto_wrap_policy=wrap_policy,
         )
         logger.info("FSDP: FULL_SHARD + CPU offload applied (peak ≈ 23GB/GPU)")
 
@@ -758,21 +773,17 @@ class AltOptTrainer:
             return 0.0
 
         with FSDP.summon_full_params(self.model, writeback=True):
-            if rank == 0:
-                try:
-                    loss = self.altopt.als.solve_block(
-                        batch_gpu, block_size=block_size,
-                        _lm_head_module=self._lm_head_module,
-                    )
-                except Exception as e:
-                    logger.error("FSDP ALS solve failed: %s", e)
-                    loss = 0.0
-            else:
+            # All ranks solve ALS (deterministic→ identical). writeback
+            # broadcasts rank 0 result on exit. Symmetric enter/exit avoids
+            # collective mismatch NCCL errors.
+            try:
+                loss = self.altopt.als.solve_block(
+                    batch_gpu, block_size=block_size,
+                    _lm_head_module=self._lm_head_module,
+                )
+            except Exception as e:
+                logger.error("FSDP ALS solve failed: %s", e)
                 loss = 0.0
-
-        # Synchronize after context exit
-        if dist.is_initialized():
-            dist.barrier()
 
         return loss
 
@@ -799,6 +810,7 @@ class AltOptTrainer:
 
     def _fsdp_perturb_step(self, batch_gpu, phase_config) -> float:
         """Perturb phase: summon full params → apply noise → writeback."""
+        import torch.distributed as dist
         from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 
         noise_scale = phase_config.noise_scale or 5e-4
