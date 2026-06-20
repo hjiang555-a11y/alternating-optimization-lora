@@ -126,26 +126,16 @@ def run_protocol(protocol_label, opt_type, param_form, seed, n_steps):
     logger.info("=" * 60)
 
     # Load model (fresh for each run to avoid state leakage)
+    # Use device_map="auto" for all protocols — splits model across GPUs.
+    # 8-bit AdamW handles full-rank optimizer memory.
     logger.info("Loading model: %s", MODEL_NAME)
-    use_ds = (param_form == "full_rank")  # DeepSpeed only for full-rank 7B
-    if use_ds:
-        # Load to CPU — DeepSpeed manages device placement
-        model = AutoModelForCausalLM.from_pretrained(
-            MODEL_NAME,
-            torch_dtype=torch.bfloat16,
-            device_map=None,
-            trust_remote_code=False,
-            local_files_only=True,
-        )
-    else:
-        # LoRA protocols: use device_map="auto" for direct GPU placement
-        model = AutoModelForCausalLM.from_pretrained(
-            MODEL_NAME,
-            torch_dtype=torch.bfloat16,
-            device_map="auto",
-            trust_remote_code=False,
-            local_files_only=True,
-        )
+    model = AutoModelForCausalLM.from_pretrained(
+        MODEL_NAME,
+        torch_dtype=torch.bfloat16,
+        device_map="auto",
+        trust_remote_code=False,
+        local_files_only=True,
+    )
     model.gradient_checkpointing_enable()
 
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, trust_remote_code=False,
@@ -166,9 +156,7 @@ def run_protocol(protocol_label, opt_type, param_form, seed, n_steps):
         seed=seed,
         eval_every=EVAL_EVERY,
         save_every=SAVE_EVERY,
-        use_deepspeed=use_ds,
-        deepspeed_zero_stage=2,
-        deepspeed_bf16=True,
+        use_deepspeed=False,
         gradient_accumulation_steps=GRAD_ACCUM,
         lora_r=8,
         lora_alpha=16.0,
