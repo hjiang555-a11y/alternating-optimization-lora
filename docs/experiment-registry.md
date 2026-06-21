@@ -56,13 +56,57 @@ Note: Qwen-0.5B gap does NOT shrink over steps (74k→73k→89k) — differs fro
 
 | Protocol | Optimizer | Param Form | Steps | PPL | Seeds | Source |
 |----------|-----------|------------|-------|-----|-------|--------|
-| A | AltOpt | full-rank | — | **BLOCKED** | — | depth boundary |
+| A | ASP | full-rank | — | **BLOCKED** | — | depth boundary (11 attempts) |
 | B | AdamW | full-rank | 800 | **1.25 ± 0.01** | 3 ✅ | Phase B (2026-06-20) |
-| C | AltOpt | LoRA | 800 | 135.36 ± 9.05 | 3 | Phase A |
+| C | ASP | LoRA | 800 | 135.36 ± 9.05 | 3 | Phase A |
 | D | AdamW | LoRA | 800 | 10.41 ± 0.01 | 3 | Phase A |
 
-- Fresh baseline (untrained Qwen2.5-7B): PPL 105.56 (N_EVAL=200)
-- **Eval caveat**: N_EVAL=200 (~12,640 tokens), useful for cross-protocol relative comparison only
+- Fresh baseline (untrained Qwen2.5-7B): PPL 105.56 (N_EVAL=200) / PPL 133.16 (full test set)
+- Full test set evaluation: 298,938 tokens, Protocol B matches N_EVAL=200 within ±0.01 PPL
+
+### Qwen2.5-0.5B — Parameter-Matched LoRA Baseline (Phase C, 2026-06-21)
+
+| Configuration | Trainable Params | 100 steps | 200 steps | 400 steps | Source |
+|---------------|-----------------|-----------|-----------|-----------|--------|
+| LoRA r=8 (Protocol D) | ~3M | 32.2 | — | — | Table 1 |
+| LoRA r=256, α=512 | 34.6M | **1.61** | **1.60** | **1.63** | Phase C |
+| LoRA r=512, α=1024 | 69.2M | **1.64** | **1.62** | **1.67** | Phase C |
+| Full-rank (Protocol B) | ~494M | 44.4 | — | — | Table 1 |
+
+- **Key finding**: rank scaling effect 27× >> full-rank; diminishing returns beyond ~35M params
+- AdamW optimizer, 800 WikiText-2 training samples, seq_len=1024, batch_size=1
+
+### Qwen2.5-7B — Downstream & Cross-Dataset (Phase D, 2026-06-21/22)
+
+**HellaSwag (N=3 seeds, 0-shot)**
+
+| Model | Seed 42 | Seed 123 | Seed 456 | Mean ± SE |
+|-------|---------|----------|----------|-----------|
+| Baseline | — | — | — | **59.91%** / 78.89% |
+| Protocol B (full-rank) | 54.96% / 73.44% | 58.31% / 77.11% | 56.94% / 73.88% | **56.74 ± 0.98%** |
+| Protocol D (LoRA r=8) | 59.88% / 78.83% | 59.68% / 78.76% | 59.67% / 79.13% | **59.74 ± 0.07%** |
+
+**C4 Perplexity (N=3 seeds, 300 validation samples)**
+
+| Model | Seed 42 | Seed 123 | Seed 456 | Mean ± SE |
+|-------|---------|----------|----------|-----------|
+| Baseline | — | — | — | **77.02** |
+| Protocol B (full-rank) | 2.56 | 2.35 | 2.34 | **2.42 ± 0.07** |
+| Protocol D (LoRA r=8) | 2.30 | 2.32 | 2.28 | **2.30 ± 0.01** |
+
+**MMLU (5-shot, 200/task, seed 42)**
+
+| Model | acc |
+|-------|-----|
+| Protocol B (full-rank) | 72.16% |
+| Protocol D (LoRA r=8) | **76.34%** (+4.18pp) |
+
+**ARC-Challenge (0-shot, seed 42)**
+
+| Model | acc / acc_norm |
+|-------|-----------------|
+| Protocol B (full-rank) | 48.46% / 47.18% |
+| Protocol D (LoRA r=8) | **49.23%** / **50.43%** (+3.25pp)
 
 ### SmolLM2-135M (135M, 30L)
 

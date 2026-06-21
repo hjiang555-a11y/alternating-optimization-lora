@@ -1,6 +1,8 @@
 # 综合报告: Alternating Optimization Framework vs LoRA
 
-**日期**: 2026-06-12  
+> **⚠️ SUPERSEDED as of 2026-06-22**. This document reflects the state from experiments #001-#006 (June 2026). Current findings reverse key claims: sufficient-rank LoRA (r=256) outperforms full-rank by 27× on perplexity, LoRA beats full-rank on all downstream tasks, and the WikiText-2 "full-rank advantage" is an overfitting artifact. See [paper v1.3](../paper/paper_draft_v0.2.md) and [todo.md](../todo.md).
+
+**日期**: 2026-06-12 (superseded)  
 **覆盖**: 实验 #001–#006 + 矩阵实验 + 数学分析  
 **代码量**: ~6,000 LOC / 115 tests / 3 架构 / 80+ independent runs  
 

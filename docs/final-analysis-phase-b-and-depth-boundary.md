@@ -1,7 +1,9 @@
 # Final Analysis: Phase B + Depth Boundary — Qwen2.5-7B
 
-**Date**: 2026-06-20
-**Status**: Complete — 3/4 cells on 7B, depth boundary confirmed on 9 architectures
+> **⚠️ SUPERSEDED by v1.3 (2026-06-22)**. This document reflects the state as of 2026-06-20 (3/4 cells on 7B). The key claim that "full-rank >> LoRA (8.3×)" has been reversed by subsequent experiments: parameter-matched LoRA (r=256: PPL=1.61) outperforms full-rank (PPL=44.4) by 27×, the 8.3× WikiText gap collapses to 1.05× on C4, and LoRA beats full-rank on all 3 downstream tasks. See [paper v1.3](../../paper/paper_draft_v0.2.md) and [todo.md](../../todo.md) for current status.
+
+**Date**: 2026-06-20 (superseded)
+**Original Status**: Complete — 3/4 cells on 7B, depth boundary confirmed on 8 architectures
 
 ---
 

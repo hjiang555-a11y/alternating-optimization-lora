@@ -1,8 +1,10 @@
 # Phase B 切合度评估 — Qwen2.5-7B Full-Rank 结果更新
 
-**日期**: 2026-06-20
+> **⚠️ SUPERSEDED by v1.3 (2026-06-22)**. This document assessed the project at Phase B completion (v0.7). The "parameter form dominates" claim has been reversed by parameter-matched LoRA experiments and downstream/C4 evaluations. Current status: see [paper v1.3](../../paper/paper_draft_v0.2.md) and [todo.md](../../todo.md).
+
+**日期**: 2026-06-20 (superseded)
 **基础**: [alignment_audit.md](alignment_audit.md) (v2026-06-12)
-**变更**: Phase B (AdamW+full-rank, Qwen2.5-7B, 3 seeds, 800 steps) 完成
+**原变更**: Phase B (AdamW+full-rank, Qwen2.5-7B, 3 seeds, 800 steps) 完成
 
 ---
 
