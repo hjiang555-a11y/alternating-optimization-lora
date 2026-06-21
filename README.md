@@ -17,7 +17,7 @@
 
 | 实验 | LoRA | 全秩 | 结论 |
 |------|------|------|------|
-| **参数匹配** (§5.7) | r=256: PPL=**1.61** | PPL=44.4 | 秩缩放 27× 击败全秩 |
+| **参数匹配** (§5.7) | r≥16: PPL=**1.60±0.02** | PPL=44.4 | 相位跃迁: 0.45% 参数即可 |
 | **HellaSwag** (§5.6.3, N=3) | **59.74%** (-0.17pp vs 基线) | 56.74% (-3.17pp) | LoRA 保留 99.7% 准确率 |
 | **C4 PPL** (§5.6.4, N=3) | **2.30 ± 0.01** | 2.42 ± 0.07 | WikiText 8.3× 差距→C4 1.1× |
 | **MMLU + ARC** (§5.6.3) | **76.34%** / 50.43% | 72.16% / 47.18% | LoRA 下游领先 (MMLU +4.2pp) |
@@ -342,11 +342,11 @@ python experiments/analysis.py logs/
 
 | 维度 | 状态 |
 |------|------|
-| **论文** | v1.3 — 六轮评审全部解决, 五任务下游表, 所有文档对齐 |
-| **实验** | 12 轮, 8 架构, Qwen2.5-7B 3/4 cells, 参数匹配+下游+C4 完成 |
-| **参数匹配** | LoRA r=256 PPL=1.61 >> 全秩=44.4 (27×) — 秩缩放效应确立 |
-| **下游评估** | HellaSwag×3 + C4×6 + MMLU + ARC: LoRA 3/3 任务胜出 |
-| **Git** | 48+ commits, pushed to `gingersea/alternating-optimization-lora` |
+| **论文** | v1.4 — 秩相位跃迁发现; M-index, ε metric, 内在维度联系 |
+| **实验** | 秩曲线完整 (r=8→512), Phase 2 跨架构验证 (r=64 on 7B) 运行中 |
+| **关键发现** | 秩相位跃迁 at r≈16: PPL 瞬间从 32.2 崩溃到 1.60, 之后平坦 |
+| **公式** | Rank Phase Transition / M-index / ε Parameter Efficiency |
+| **Git** | 50+ commits, pushed to `gingersea/alternating-optimization-lora` |
 
 - [x] 2×2 析因框架 (方法论贡献)
 - [x] 8 架构验证 (12L-32L, 含 Qwen2.5-7B GPU)
