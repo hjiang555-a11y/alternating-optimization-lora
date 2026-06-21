@@ -36,11 +36,11 @@ logger = logging.getLogger("param-matched")
 MODEL_NAME = "Qwen/Qwen2.5-0.5B"
 
 DATASET_NAME = "wikitext-2-raw-v1"
-MAX_SEQ_LEN = 2048
-BATCH_SIZE = 2
-GRAD_ACCUM = 8         # effective batch = 16
-N_TRAIN = 1600
-N_EVAL = 200
+MAX_SEQ_LEN = 1024
+BATCH_SIZE = 1
+GRAD_ACCUM = 4         # effective batch = 4
+N_TRAIN = 800
+N_EVAL = 100
 LR = 1e-4
 WEIGHT_DECAY = 0.01
 
@@ -173,6 +173,7 @@ def main():
                     MODEL_NAME, torch_dtype=torch.bfloat16,
                     device_map="auto", trust_remote_code=False,
                     local_files_only=True,
+                    max_memory={0: "28GiB", "cpu": "200GiB"},
                 )
                 device = next(base_model.parameters()).device
 
@@ -204,12 +205,19 @@ def main():
                 all_results[exp_label] = {"rank": rank, "steps": max_steps,
                                           "error": str(e)}
             finally:
-                del base_model
+                # Aggressive cleanup
+                import gc
                 try:
                     del model
                 except Exception:
                     pass
+                try:
+                    del base_model
+                except Exception:
+                    pass
+                gc.collect()
                 torch.cuda.empty_cache()
+                torch.cuda.synchronize()
 
     # ── Save results ──
     out_file = OUT_DIR / "results.json"
