@@ -342,11 +342,11 @@ python experiments/analysis.py logs/
 
 | 维度 | 状态 |
 |------|------|
-| **论文** | v1.2 — 六轮评审, 所有关键问题已解决 |
-| **实验** | 12 轮, 8 架构, Qwen2.5-7B 3/4 cells, 多下游任务 |
-| **参数匹配** | LoRA r=256 PPL=1.61 >> 全秩=44.4 (27×) — 反转原始声称 |
-| **下游评估** | HellaSwag×3 + C4×6 + MMLU + ARC: 四重证据汇聚 |
-| **Git** | 45+ commits, pushed to `gingersea/alternating-optimization-lora` |
+| **论文** | v1.3 — 六轮评审全部解决, 五任务下游表, 所有文档对齐 |
+| **实验** | 12 轮, 8 架构, Qwen2.5-7B 3/4 cells, 参数匹配+下游+C4 完成 |
+| **参数匹配** | LoRA r=256 PPL=1.61 >> 全秩=44.4 (27×) — 秩缩放效应确立 |
+| **下游评估** | HellaSwag×3 + C4×6 + MMLU + ARC: LoRA 3/3 任务胜出 |
+| **Git** | 48+ commits, pushed to `gingersea/alternating-optimization-lora` |
 
 - [x] 2×2 析因框架 (方法论贡献)
 - [x] 8 架构验证 (12L-32L, 含 Qwen2.5-7B GPU)
