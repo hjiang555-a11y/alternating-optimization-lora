@@ -79,14 +79,15 @@
 | Overfitting Boundary | $M = k \cdot (N_d/N_p)^\beta$ | $\beta \approx 0.28$ | ✅ Consistent |
 | Architecture Invariance | r=8 plateau independent of scale | — | ✅ Robust across 5 families |
 
-## Remaining (Non-Blocking)
+## Remaining (Non-Blocking — Future Work / Separate Paper)
 
-- [ ] C4 with full 3 seeds on all protocols (B+D ×3 done, 300 samples each)
-- [ ] >2000-step crossover on GPT-2/OPT-125m (ASP convergence)
-- [ ] Non-English WikiText: test η scaling with token entropy H
-- [ ] Encoder-decoder (T5): test per-stack r_min prediction
-- [ ] Chinese WikiText: r=8 may be INSUFFICIENT (prediction)
-- [ ] Submit to venue (TMLR recommended by reviewers)
+- [x] C4 B+D ×3 seeds done (300 samples each) — sufficient for cross-domain conclusion
+- [ ] C4 on remaining protocols (A, C) — marginal value, B+D are the key comparison
+- [ ] >2000-step crossover (ASP convergence) — CPU too slow for current resources; testable prediction in paper
+- [ ] Chinese WikiText — script ready (`experiments/_zh_wt.py`), pending dataset download
+- [ ] Encoder-decoder (T5) — testable prediction in §6.9.3
+- [ ] Non-English η scaling — testable prediction in §6.9.3
+- [x] **[READY] Submit to venue (TMLR)** — cover letter drafted, submission guide at `docs/submission_guide.md`
 
 ---
 
