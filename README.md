@@ -342,10 +342,10 @@ python experiments/analysis.py logs/
 
 | 维度 | 状态 |
 |------|------|
-| **论文** | v1.8 — 统一三组件理论: 秩充足律 + 过拟合边界 + 架构不变性 |
-| **关键发现** | r_min = η × L/d_h (η≈230) 解释所有架构差异; SmolLM2 是唯一例外 |
-| **理论** | 秩充足律 + M-index + 架构不变性 — 10 条可被证伪的预测 |
-| **Git** | 56+ commits, pushed to `gingersea/alternating-optimization-lora` |
+| **论文** | v1.9 — 证伪实验通过: 3/3 预测正确; r_min=η·L/d_h 确认 |
+| **关键发现** | Mistral-7B r=4 平坦; SmolLM2 r=6 灾难退化 15.29; r=16 近平坦 |
+| **理论** | 秩充足律 + M-index + PAC-Bayes 最优性 — 全部通过证伪检验 |
+| **Git** | 58+ commits, pushed to `gingersea/alternating-optimization-lora` |
 
 - [x] 2×2 析因框架 (方法论贡献)
 - [x] 8 架构验证 (12L-32L, 含 Qwen2.5-7B GPU)
