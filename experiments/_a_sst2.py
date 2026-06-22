@@ -28,7 +28,7 @@ for rank in [4, 8, 32]:
         t = tokenizer(ex["sentence"], truncation=True, max_length=128, padding="max_length", return_tensors="pt")
         return {"input_ids": t["input_ids"][0], "attention_mask": t["attention_mask"][0]}
     ds_tok = ds.map(tok_fn)
-    ds_tok = ds_tok.map(lambda ex: {"labels": ex["input_ids"].clone()})
+    ds_tok = ds_tok.map(lambda ex: {"labels": ex["input_ids"]})
     ds_tok.set_format(type="torch", columns=["input_ids", "attention_mask", "labels"])
     dl = DataLoader(ds_tok, batch_size=8, shuffle=True, collate_fn=lambda b: {"input_ids": torch.stack([x["input_ids"] for x in b]), "attention_mask": torch.stack([x["attention_mask"] for x in b]), "labels": torch.stack([x["input_ids"] for x in b])})
 
