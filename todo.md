@@ -1,7 +1,7 @@
-# Project Status — v3.0 FINAL
+# Project Status — v3.2 FINAL
 
 **Date**: 2026-06-22
-**Status**: ✅ Complete. All 10 experiments done. Theory validated. Paper v3.0 ready.
+**Status**: ✅ Complete. 10 experiments done. Grok review cleared (Minor Revision → Accept). Paper v3.2 ready.
 
 ---
 
@@ -16,8 +16,11 @@
 - [x] P5: Multi-seed rank curve — SE<0.002; max|Δ|=0.0055
 
 ### F1-F2: Theory Completion
-- [x] F1: η mechanism — task-intrinsic; H and N_samples alternatives eliminated
+- [x] F1: η mechanism — task-stable across languages and training budgets; H and N_samples eliminated
 - [x] F2: Full ASP — real Cholesky ALS non-monotonic at 12L; best PPL=1.87 mid-training
+
+### A: SST-2 Classification Validation (Pending)
+- [ ] A: SST-2 rank curve — script ready (_a_sst2.py); pending HF network availability
 
 ### Core + Downstream + Math
 All core experiments, downstream evaluations, cross-dataset validations, and mathematical derivations complete. Paper v3.0 at paper/paper_draft_v0.2.md (878 lines).

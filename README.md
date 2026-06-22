@@ -4,11 +4,11 @@
 >
 > Core finding: $r_{\min} = \eta \cdot L/d_h$ ($\eta \approx 230 \pm 8\%$) — an empirically calibrated, experimentally falsified, task-intrinsic rank sufficiency law for LoRA post-training.
 >
-> **Status**: Paper v3.0 FINAL — 10 experiments complete (P0-P5 + F1-F2). All open questions resolved or honestly bounded.
+> **Status**: Paper v3.2 — 10 experiments complete. Grok review passed (Minor Revision → Accept).
 
 ---
 
-## 🔑 Core Findings (v2.0)
+## 🔑 Core Findings (v3.2)
 
 ### Three-Component Unified Theory
 
@@ -22,7 +22,7 @@
 
 | Experiment | LoRA Result | Full-rank Result | Conclusion |
 |------------|------------|------------------|------------|
-| **Rank curve** (5 models) | r=8 matches r=256 (PPL ±0.02) | PPL=44.4 (0.5B) | Rank plateau across architectures |
+| **Rank curve** (5 models) | r=8 matches r=256 when /d_h \leq 0.035$ | PPL=44.4 (0.5B) | /d_h \leq 0.035$: r=8 sufficient |
 | **HellaSwag** (N=3) | **59.74%** (−0.17pp) | 56.74% (−3.17pp) | LoRA preserves 99.7% accuracy |
 | **C4 PPL** (N=3) | **2.30 ± 0.01** | 2.42 ± 0.07 | WikiText 8.3× gap → C4 1.05× |
 | **MMLU + ARC** | **76.34%** / 50.43% | 72.16% / 47.18% | LoRA wins all 3 downstream tasks |
