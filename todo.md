@@ -19,8 +19,9 @@
 - [x] F1: η mechanism — task-stable across languages and training budgets; H and N_samples eliminated
 - [x] F2: Full ASP — real Cholesky ALS non-monotonic at 12L; best PPL=1.87 mid-training
 
-### A: SST-2 Classification Validation (Pending)
-- [ ] A: SST-2 rank curve — script ready (_a_sst2.py); pending HF network availability
+### A: SST-2 Classification Validation — DONE
+- [x] A: SST-2 rank curve — r=4/8/32 all achieve IDENTICAL accuracy (84.7%, 739/872)
+- Finding: rank plateau extends to classification AND down to r=4 (below PPL plateau at r=8)
 
 ### Core + Downstream + Math
 All core experiments, downstream evaluations, cross-dataset validations, and mathematical derivations complete. Paper v3.0 at paper/paper_draft_v0.2.md (878 lines).
