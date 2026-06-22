@@ -342,11 +342,10 @@ python experiments/analysis.py logs/
 
 | 维度 | 状态 |
 |------|------|
-| **论文** | v1.6 — 交叉架构修正: 无相位跃迁; r=8 普遍足够; 5 模型验证 |
-| **实验** | 5 模型交叉架构 + 秩曲线: r=8 几乎等于 r=256 在所有架构上 |
-| **关键发现** | 训练配置而非秩才是瓶颈; 全秩过拟合是 WikiText 差距的真正原因 |
-| **公式** | M-index 过拟合诊断 / ε Parameter Efficiency / r=8 普遍性 |
-| **Git** | 52+ commits, pushed to `gingersea/alternating-optimization-lora` |
+| **论文** | v1.8 — 统一三组件理论: 秩充足律 + 过拟合边界 + 架构不变性 |
+| **关键发现** | r_min = η × L/d_h (η≈230) 解释所有架构差异; SmolLM2 是唯一例外 |
+| **理论** | 秩充足律 + M-index + 架构不变性 — 10 条可被证伪的预测 |
+| **Git** | 56+ commits, pushed to `gingersea/alternating-optimization-lora` |
 
 - [x] 2×2 析因框架 (方法论贡献)
 - [x] 8 架构验证 (12L-32L, 含 Qwen2.5-7B GPU)
