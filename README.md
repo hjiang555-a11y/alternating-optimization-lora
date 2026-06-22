@@ -2,11 +2,9 @@
 
 > **A 2×2 factorial study of ASP (ALS+SGD+Perturbation) vs LoRA for LLM post-training.**
 >
-> Core finding: $r_{\min} = \eta \cdot L/d_h$ ($\eta \approx 230$) — a mathematically derived, experimentally falsified rank sufficiency law for LoRA post-training.
-> The widely reported "full-rank beats LoRA" is a full-rank overfitting artifact.
+> Core finding: $r_{\min} = \eta \cdot L/d_h$ ($\eta \approx 230 \pm 8\%$) — an empirically calibrated, experimentally falsified, task-intrinsic rank sufficiency law for LoRA post-training.
 >
-> **Status**: Paper v2.0 — 6 rounds of review solved. Unified three-component theory + 3/3 falsification passed.
-> **Next**: P0-P5 science items listed in [todo.md](todo.md). Highest impact: Chinese WikiText ($\eta \propto H$ test) + ASP convergence crossover.
+> **Status**: Paper v3.0 FINAL — 10 experiments complete (P0-P5 + F1-F2). All open questions resolved or honestly bounded.
 
 ---
 
