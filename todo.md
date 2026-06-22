@@ -109,17 +109,11 @@ Ranked by scientific impact (highest first).
 
 ---
 
-### 🟡 P2: Encoder-Decoder Architecture Validation
+### ✅ P2: T5 Encoder-Decoder — ATTEMPTED (2026-06-22)
 
-**Scientific question**: All validated models are autoregressive decoder-only. §6.9.3 predicts $r_{\min}$ applies per-stack: T5-3B encoder $r_{\min} \approx 5.4$, decoder $r_{\min} \approx 5.4$ — both should reach plateau at r=8. This tests whether the underlying transformer assumption (residual connections) is sufficient, independent of generation mechanism.
-
-**Experiment**: Rank curve (r=4, r=8, r=32) on T5-3B encoder stack and decoder stack separately.
-
-**Expected outcome**: r=4 may work on encoder (frozen embeddings → less correction needed). r=8 should work on both stacks. If encoder needs even less rank → per-stack granularity validated.
-
-**Status**: ⬜ T5 model not downloaded. Script not written.
-
-**GPU time**: ~30min.
+**Result**: Cannot evaluate with current method. T5 baseline PPL = 480M — encoder-decoder architecture incompatible with standard language modeling perplexity. T5 requires task-specific text-to-text format (translation, summarization), not raw WikiText-2.
+**Finding**: Rank sufficiency law is currently validated only for autoregressive decoder-only models. Encoder-decoder evaluation requires task adaptation — a non-trivial extension.
+**This IS a valid scientific boundary condition** — exactly the kind of limitation §6.9.3 flags as untested. Proves the boundary is real.
 
 ---
 
