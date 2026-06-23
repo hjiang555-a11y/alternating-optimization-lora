@@ -50,3 +50,6 @@ Thumbs.db
 *.zip
 models/
 datasets/
+*.aux
+*.log
+*.out
