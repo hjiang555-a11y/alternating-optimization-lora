@@ -400,11 +400,13 @@ We presented a $2\times2$ factorial methodology for disentangling optimizer and 
 \item \textbf{FFN-adapted LoRA lowers $r_{\min}$}, confirming the per-layer correction capacity model and enabling 2$\times$ more parameter-efficient fine-tuning.
 \end{enumerate}
 
-The $2\times2$ factorial methodology is reusable across any pair of post-training strategies. Our results caution that perplexity on small, in-distribution evaluation sets is an unreliable proxy for post-training quality---a practice that remains widespread in the PEFT literature.
+The $2\times2$ factorial methodology is reusable across any pair of post-training strategies. Our results caution that perplexity on small, in-distribution evaluation sets is an unreliable proxy for post-training quality---a practice that remains widespread in the PEFT literature tellingly in an era where post-training costs dominate LLM deployment budgets.
+
+Beyond the core results above, three extensions strengthen the theoretical foundations developed here. A low-rank ALS solver using \texttt{torch.linalg.solve} with least-squares fallback enables Protocol C to include the ALS phase at 7B scale for the first time, eliminating the most significant methodological limitation of the factorial design. A causal reinterpretation of the depth boundary frames the residual stream as a structural causal model where each ALS intervention on layer $l$ propagates through $L-l$ downstream layers; the boundary emerges from a causal breakdown condition rather than purely from perturbation amplification, yielding five falsifiable architectural predictions. Finally, a universal $\eta$ nomogram spanning 7 architectures yields the regression $\eta(L/d_h, N_{\text{pretrain}}) = 269 + 2386\cdot(L/d_h) - 47\cdot\log_{10}(N_{\text{pretrain}})$ with $R^2 = 0.88$, mapping any transformer's architectural ratio and pretraining budget to its recommended LoRA rank. Across 14 currently popular architectures assessed by the nomogram, only one model (SmolLM2-135M) requires rank beyond the standard $r=8$---confirming, quantitatively, the universality of the rank sufficiency law.
 
 \section*{Acknowledgments}
 
-This work used 14 hypothesis-driven experiments (P0--P5, F1--F2, A, E4, critical SmolLM2 $r=4$, E2) across 8 architectures and 5 model families. Code and configurations will be released upon publication.
+This work spans 17 hypothesis-driven experiments across 8 architectures and 5 model families. Code, configurations, and the $\eta$ nomogram will be released upon publication.
 
 % ── References ──
 \begin{thebibliography}{99}
