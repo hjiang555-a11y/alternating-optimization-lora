@@ -50,8 +50,8 @@ All core experiments, downstream evaluations, cross-dataset validations, and mat
 ### X2: Causal Depth Boundary Theory
 **Problem**: $L^* \approx 26$ is empirically established but lacks causal structural explanation. When ALS updates layer $l$, the distribution shift propagates through $L-l$ residual connections, disrupting causal dependencies encoded in later layers.
 **Goal**: Formalize depth boundary as the point where cross-layer causal disruption exceeds SGD recovery. Connect to structural causal model (SCM) framework and causal representation learning. Derive $L^*$ from causal graph properties rather than perturbation amplification alone.
-**Status**: ⬜ Mathematical framework; empirical evidence exists (8 architectures, 11 failed 7B attempts).
-**Value**: 🔴 Elevates depth boundary from phenomenological observation to structural theory. Opens connection to causal interpretability literature.
+**Status**: ✅ Derivation complete. `docs/causal_depth_boundary.md` — 7-section mathematical note. Frames $L^*$ through causal intervention propagation; $\bar{\rho}$ derived from per-layer Jacobian spectra; 5 falsifiable architectural predictions; connections to causal representation learning. Seed for standalone paper or workshop submission.
+**Value**: 🔴 Elevates depth boundary from phenomenological to structural. Opens causal interpretability connection.
 
 ### X3: Universal $\eta$ Nomogram
 **Problem**: $\eta$ is now model-specific (modulated by pretraining quality $q^{-1}(N_{\text{pretrain}})$), but with only 6 architecture data points. A nomogram mapping $(L/d_h, N_{\text{pretrain}}) \rightarrow \eta \rightarrow r_{\min}$ would be a practical tool for practitioners.
