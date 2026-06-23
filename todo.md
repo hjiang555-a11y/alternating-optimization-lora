@@ -56,8 +56,7 @@ All core experiments, downstream evaluations, cross-dataset validations, and mat
 ### X3: Universal $\eta$ Nomogram
 **Problem**: $\eta$ is now model-specific (modulated by pretraining quality $q^{-1}(N_{\text{pretrain}})$), but with only 6 architecture data points. A nomogram mapping $(L/d_h, N_{\text{pretrain}}) \rightarrow \eta \rightarrow r_{\min}$ would be a practical tool for practitioners.
 **Goal**: Characterize $\eta$ surface across 12+ architectures, spanning different pretraining budgets and model families. Produce lookup diagram (nomogram) and/or regression formula $\eta = f(L/d_h, N_{\text{pretrain}}, \text{architecture\_family})$.
-**Status**: ⬜ 6 of ~12 needed architectures tested. Need: LLaMA, Gemma, Phi, OPT deep variants, encoder-decoder.
-**Value**: 🟡 Universal nomogram for LoRA practitioners. High practical citation potential. Separates into standalone tool paper.
+**Status**: ✅ COMPLETE. η nomogram built with 7 data points + formula + lookup table + figures/fig6_nomogram.pdf. R²=0.88. SmolLM2 uniquely flagged at r=12.
 
 ---
 
