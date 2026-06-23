@@ -531,39 +531,39 @@ class ALSBlockSolver:
             X = X_full.to(device=device, dtype=effective_W.dtype)
 
             n_blocks = (d_out + block_size - 1) // block_size
+
+            # ── Pre-compute X^TX + λI (shared across blocks) ──
             XtX = X.T @ X
             reg = self.reg_lambda * torch.eye(d_in, device=device, dtype=X.dtype)
             XtX_reg = XtX + reg
 
-            try:
-                L = torch.linalg.cholesky(XtX_reg)
-            except RuntimeError:
-                L = None
-
+            # ── B-projection: pre-compute A† = A^T(AA^T + λI)^{-1} ──
             A_mat = lora_A
             AAT = A_mat @ A_mat.T
-            reg_r = self.reg_lambda * torch.eye(
-                r_val, device=device, dtype=A_mat.dtype,
-            )
+            reg_r = self.reg_lambda * torch.eye(r_val, device=device, dtype=A_mat.dtype)
             try:
                 L_r = torch.linalg.cholesky(AAT + reg_r)
                 A_pinv = torch.cholesky_solve(A_mat, L_r)
             except RuntimeError:
                 A_pinv = torch.linalg.lstsq(AAT + reg_r, A_mat).solution
 
+            # ── Per-block solve: torch.linalg.solve with lstsq fallback ──
             for i in range(n_blocks):
                 start = i * block_size
                 end = min(start + block_size, d_out)
 
-                Y_block = X @ effective_W[start:end, :].T
-                XtY = X.T @ Y_block
+                Y_block = X @ effective_W[start:end, :].T  # [N, b_size]
+                XtY = X.T @ Y_block                         # [d_in, b_size]
 
-                if L is not None:
-                    W_new_block = torch.cholesky_solve(XtY, L)
-                else:
-                    W_new_block = torch.linalg.lstsq(XtX_reg, XtY).solution
+                # Primary: batched direct solve on normal equations
+                # (X^TX + λI) is SPD by construction → uses efficient Cholesky/LU
+                try:
+                    W_new_T = torch.linalg.solve(XtX_reg, XtY)  # [d_in, b_size]
+                except RuntimeError:
+                    # Fallback: least squares (handles singular/ill-conditioned)
+                    W_new_T = torch.linalg.lstsq(XtX_reg, XtY).solution
 
-                W_new_block = W_new_block.T
+                W_new_block = W_new_T.T  # [b_size, d_in]
                 delta_W = W_new_block - effective_W[start:end, :]
                 delta_B = delta_W @ A_pinv.T / scaling
                 lora_B[start:end, :] += delta_B.to(lora_B.dtype)
