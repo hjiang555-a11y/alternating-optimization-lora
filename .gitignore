@@ -54,3 +54,7 @@ datasets/
 *.log
 *.out
 *.aux\n*.log\n*.out\n*.toc
+
+# Project artifacts
+.omo/
+figures/*.png
