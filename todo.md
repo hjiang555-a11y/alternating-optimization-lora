@@ -36,7 +36,8 @@
 - [ ] 为每个论文主张建立 `claim → run → config → checkpoint/result → figure/table` 映射。
 - [ ] 恢复或重新生成并纳入版本控制的 7B 完整测试集汇总；若无法恢复，删除“full test set validated”表述。
 - [ ] 将 Protocol B 三个 seed 的机器可读原始结果加入统一 registry，并记录 commit、环境、数据切分和评估 token 数。
-- [ ] 修正论文及汇总文档的架构计数（对应上表 P0 差距）：统一为 **8 个实测架构**；Llama-2-7B 仅标为预测，不计入验证数量。
+- [ ] 修正论文及汇总文档的架构计数（对应“1. 现状评估 → 距离高价值论文的关键差距”首项）：统一为 **8 个实测架构**；Llama-2-7B 仅标为预测，不计入验证数量。
+- [ ] 将当前 v0.7 草稿从历史文件名 `paper_draft_v0.2.md` 迁移到一致的版本化文件名，并更新全部内部链接。
 - [ ] 统一 baseline PPL、N_EVAL=200 与完整测试集三套数字，禁止跨评估集直接计算比率。
 - [ ] 建立结果状态标签：`observed`、`replicated`、`inferred`、`predicted`。
 

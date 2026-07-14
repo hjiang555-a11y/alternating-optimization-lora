@@ -31,7 +31,7 @@
 
 | 版本 | 日期 | 评审决策 |
 |------|------|---------|
-| **[v0.7](paper/paper_draft_v0.2.md)** (current content retained in legacy `v0.2` filename) | 06-20 | Round 6: Major Revision |
+| **[v0.7](paper/paper_draft_v0.2.md)** (canonical draft; filename cleanup tracked in `todo.md`) | 06-20 | Round 6: Major Revision |
 | [v0.4](paper/paper_draft_v0.2.md) | 06-13 | +Round 8-9 findings |
 | [v0.3](paper/paper_draft_v0.2.md) | 06-12 | Round 2 Minor Revision fixes |
 | [v0.1](paper/paper_draft_v0.1.md) | 06-12 | Round 1 Major Revision |
@@ -331,7 +331,6 @@ python experiments/analysis.py logs/
 
 - [x] 2×2 析因框架 (评审公认核心贡献)
 - [x] 注册表记录 8 个实测架构（4 个 ≤24L 收敛，4 个 ≥28L 失稳）
-- [ ] 将论文中“9 architectures”修正为 8 个实测架构 + 1 个预测
 - [x] 多 seed 统计 (N=3-5, PB ANOVA, Fieller CI)
 - [x] 非单调收敛 + ASP 隐式正则化
 - [x] 深度边界发现 (4/4 架构 ≥28L 发散, 数学建模)
@@ -343,6 +342,8 @@ python experiments/analysis.py logs/
 - [ ] Qwen2.5-7B Protocol B/D 的同协议 HellaSwag 评估
 - [ ] 参数量匹配的 full-rank/LoRA 对照
 - [ ] 将论文重构为准析因设计并收缩因果主张
+
+详细任务与完成门槛仅在 [`todo.md`](todo.md) 维护。
 
 ---
 
