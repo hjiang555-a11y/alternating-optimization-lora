@@ -54,6 +54,15 @@
 详见 [`docs/p2-synthesis.md`](docs/p2-synthesis.md)。核心判断：**可发表** — 干净的负结果 + 深度失稳确认 + 隐式正则化正面发现。
 
 下一步：
-- [ ] 更新论文 v0.7.1 → v0.8（加入 P1 结果）
+- [x] 更新论文 v0.7.1 → v0.8（加入 P1 结果）— commit `60ae760`
 - [ ] 独立复核者复算主表
 - [ ] 选择投稿期刊（TMLR / arXiv+workshop）
+
+**论文 v0.8 变更摘要**：
+- 新增 §5.9 Mechanism Validation（P1.1 组件归因 + P1.2 跨深度 + P1.3 跨域正则化）
+- Abstract 从 5 → 6 条核心结论
+- Contributions 从 6 → 7 条
+- §7.2 增加跨域 + 组件归因证据
+- §7.3 limitation #5 标记为 partially resolved
+- §7.4 定性比较表新增跨域泛化 + 瓶颈两行
+- §8 发现表从 8 → 10 条，结论从 5 → 6 条，实验数 14 → 17
