@@ -273,11 +273,11 @@ class ALSBlockSolver:
                     total_loss += loss
                     n_blocks_total += n_blocks
 
-        # ── Intermediate layers: last K blocks (multi_layer_depth > 1) ──
+        # ── Intermediate layers: sequential one-pass-per-layer ──
         if self.multi_layer_depth > 1:
             learnable_modules = self._select_learnable_modules()
             if learnable_modules:
-                loss, n_blocks = self._solve_multi_layer_batch(
+                loss, n_blocks = self._solve_multi_layer_sequential(
                     learnable_modules, batch, block_size,
                 )
                 total_loss += loss
@@ -305,49 +305,46 @@ class ALSBlockSolver:
                 selected.append((name, module))
         return selected
 
-    def _solve_multi_layer_batch(
+    def _solve_multi_layer_sequential(
         self,
         modules: list[tuple[str, nn.Linear]],
         batch: dict[str, torch.Tensor],
         block_size: int,
     ) -> tuple[float, int]:
-        """Solve a batch of intermediate Linear layers in one forward pass.
+        """Solve intermediate layers one at a time with fresh forward pass each.
 
-        Installs hooks on all target modules, runs one forward pass to capture
-        activations, then solves each module via reconstruction-based ALS.
+        One forward pass per layer captures activations after previous layers'
+        weights have been updated, eliminating stale-activation interference.
         """
         if not modules:
             return 0.0, 0
 
-        activations_cache: dict[str, torch.Tensor] = {}
-        hooks: list = []
-
-        for name, module in modules:
-            hook = module.register_forward_pre_hook(
-                lambda _mod, inp, n=name: activations_cache.setdefault(
-                    n, inp[0].detach(),
-                ),
-            )
-            hooks.append(hook)
-
-        try:
-            device = modules[0][1].weight.device
-            with torch.no_grad():
-                _ = self.model(**{
-                    k: v.to(device) for k, v in batch.items()
-                    if isinstance(v, torch.Tensor)
-                })
-        finally:
-            for h in hooks:
-                h.remove()
+        device = modules[0][1].weight.device
+        batch_on_device = {
+            k: v.to(device) for k, v in batch.items()
+            if isinstance(v, torch.Tensor)
+        }
 
         total_loss = 0.0
         n_total = 0
 
         for name, module in modules:
-            X = activations_cache.get(name)
-            if X is None:
+            activations: list[torch.Tensor] = []
+
+            def capture(_mod, inp):
+                activations.append(inp[0].detach())
+
+            hook = module.register_forward_pre_hook(capture)
+            try:
+                with torch.no_grad():
+                    _ = self.model(**batch_on_device)
+            finally:
+                hook.remove()
+
+            if not activations:
                 continue
+
+            X = activations[0]
             if X.dim() == 3:
                 X = X.reshape(-1, module.weight.shape[1])
 
